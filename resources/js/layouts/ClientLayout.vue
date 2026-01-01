@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { Head, Link, router, usePage } from '@inertiajs/vue3';
 import { ShoppingCart, LogOut, Menu as MenuIcon, ChefHat, Settings } from 'lucide-vue-next';
-import { ref } from 'vue';
+import { ref, onMounted } from 'vue';
 
 interface Props {
     title?: string;
@@ -9,10 +9,7 @@ interface Props {
 }
 
 const emit = defineEmits(['showCart']);
-
-const openCart = () => {
-    emit('showCart');
-};
+const openCart = () => emit('showCart');
 
 const props = withDefaults(defineProps<Props>(), {
     title: '',
@@ -20,13 +17,17 @@ const props = withDefaults(defineProps<Props>(), {
 });
 
 const mobileMenuOpen = ref(false);
+const ready = ref(false);  // ADD THIS
 
 const page = usePage();
 const isAdmin = () => page.props?.auth?.user?.usertype === 'master';
 
-const logout = () => {
-    router.post('/logout');
-};
+const logout = () => router.post('/logout');
+
+// Wait for component to mount
+onMounted(() => {
+    ready.value = true;
+});
 </script>
 
 <template>
@@ -35,7 +36,8 @@ const logout = () => {
         
         <div class="h-2 bg-gradient-to-r from-red-600 via-orange-500 to-red-600"></div>
         
-        <header class="bg-white shadow-lg sticky top-0 z-50">
+        <!-- Only render when ready -->
+        <header v-if="ready" class="bg-white shadow-lg sticky top-0 z-50">
             <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                 <div class="flex items-center justify-between py-3">
                     <Link href="/" class="flex items-center gap-3 group">
