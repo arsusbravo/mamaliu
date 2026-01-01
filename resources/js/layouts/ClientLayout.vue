@@ -38,12 +38,22 @@ const isActive = (path: string) => {
 };
 
 const linkClass = (path: string) => {
+    if (!page.url) {
+        // Return default class if page not ready
+        return 'px-4 py-2 text-gray-700 hover:text-red-600 transition-colors font-semibold rounded-lg hover:bg-red-50';
+    }
+    
     return isActive(path)
         ? 'px-4 py-2 bg-gradient-to-r from-red-600 to-orange-500 text-white transition-colors font-semibold rounded-lg shadow-md'
         : 'px-4 py-2 text-gray-700 hover:text-red-600 transition-colors font-semibold rounded-lg hover:bg-red-50';
 };
 
 const mobileLinkClass = (path: string) => {
+    if (!page.url) {
+        // Return default class if page not ready
+        return 'block px-4 py-3 text-gray-700 hover:bg-red-50 hover:text-red-600 rounded-lg font-semibold';
+    }
+    
     return isActive(path)
         ? 'block px-4 py-3 bg-gradient-to-r from-red-600 to-orange-500 text-white rounded-lg font-semibold'
         : 'block px-4 py-3 text-gray-700 hover:bg-red-50 hover:text-red-600 rounded-lg font-semibold';

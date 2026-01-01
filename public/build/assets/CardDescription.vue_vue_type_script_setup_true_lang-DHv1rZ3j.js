@@ -1,0 +1,1 @@
+import{b as t}from"./index-BvVEoErb.js";import{d as a,c as r,H as n,u as c,z as p,o as l}from"./app-DTGQeK2P.js";const u=a({__name:"CardDescription",props:{class:{}},setup(s){const e=s;return(o,m)=>(l(),r("p",{"data-slot":"card-description",class:n(c(t)("text-muted-foreground text-sm",e.class))},[p(o.$slots,"default")],2))}});export{u as _};
