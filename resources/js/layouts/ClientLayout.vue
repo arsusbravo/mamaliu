@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { Head, Link, router, usePage } from '@inertiajs/vue3';
-import { ShoppingCart, LogOut, Menu as MenuIcon, ChefHat, Settings } from 'lucide-vue-next';
-import { ref, onMounted } from 'vue';
+import { ShoppingCart, LogOut, User, Menu as MenuIcon, ChefHat, Settings } from 'lucide-vue-next';
+import { ref, computed } from 'vue';
 
 interface Props {
     title?: string;
@@ -9,7 +9,10 @@ interface Props {
 }
 
 const emit = defineEmits(['showCart']);
-const openCart = () => emit('showCart');
+
+const openCart = () => {
+    emit('showCart');
+};
 
 const props = withDefaults(defineProps<Props>(), {
     title: '',
@@ -17,17 +20,38 @@ const props = withDefaults(defineProps<Props>(), {
 });
 
 const mobileMenuOpen = ref(false);
-const ready = ref(false);  // ADD THIS
 
 const page = usePage();
-const isAdmin = () => page.props?.auth?.user?.usertype === 'master';
+const isAdmin = computed(() => page.props?.auth?.user?.usertype === 'master');
 
-const logout = () => router.post('/logout');
+const isActive = (path: string) => {
+    const currentPath = page.url;
+    if (!currentPath) return false;
+    
+    if (path === '/') {
+        return currentPath === '/';
+    }
+    if (path === '/settings/profile') {
+        return currentPath.startsWith('/settings');
+    }
+    return currentPath.startsWith(path);
+};
 
-// Wait for component to mount
-onMounted(() => {
-    ready.value = true;
-});
+const linkClass = (path: string) => {
+    return isActive(path)
+        ? 'px-4 py-2 bg-gradient-to-r from-red-600 to-orange-500 text-white transition-colors font-semibold rounded-lg shadow-md'
+        : 'px-4 py-2 text-gray-700 hover:text-red-600 transition-colors font-semibold rounded-lg hover:bg-red-50';
+};
+
+const mobileLinkClass = (path: string) => {
+    return isActive(path)
+        ? 'block px-4 py-3 bg-gradient-to-r from-red-600 to-orange-500 text-white rounded-lg font-semibold'
+        : 'block px-4 py-3 text-gray-700 hover:bg-red-50 hover:text-red-600 rounded-lg font-semibold';
+};
+
+const logout = () => {
+    router.post('/logout');
+};
 </script>
 
 <template>
@@ -36,8 +60,7 @@ onMounted(() => {
         
         <div class="h-2 bg-gradient-to-r from-red-600 via-orange-500 to-red-600"></div>
         
-        <!-- Only render when ready -->
-        <header v-if="ready" class="bg-white shadow-lg sticky top-0 z-50">
+        <header v-if="page.url" class="bg-white shadow-lg sticky top-0 z-50">
             <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                 <div class="flex items-center justify-between py-3">
                     <Link href="/" class="flex items-center gap-3 group">
@@ -61,7 +84,7 @@ onMounted(() => {
                     
                     <div class="hidden md:flex items-center gap-6">
                         <Link 
-                            v-if="isAdmin()"
+                            v-if="isAdmin"
                             href="/admin/dashboard" 
                             class="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-red-600 to-orange-500 hover:from-red-700 hover:to-orange-600 text-white transition-colors font-semibold rounded-lg shadow-md hover:shadow-lg"
                         >
@@ -69,15 +92,15 @@ onMounted(() => {
                             Admin Panel
                         </Link>
                         
-                        <Link href="/" class="px-4 py-2 text-gray-700 hover:text-red-600 transition-colors font-semibold rounded-lg hover:bg-red-50">
+                        <Link href="/" :class="linkClass('/')">
                             Make Order
                         </Link>
                         
-                        <Link href="/orders" class="px-4 py-2 text-gray-700 hover:text-red-600 transition-colors font-semibold rounded-lg hover:bg-red-50">
+                        <Link href="/orders" :class="linkClass('/orders')">
                             My Orders
                         </Link>
                         
-                        <Link href="/settings/profile" class="px-4 py-2 text-gray-700 hover:text-red-600 transition-colors font-semibold rounded-lg hover:bg-red-50">
+                        <Link href="/settings/profile" :class="linkClass('/settings/profile')">
                             My Account
                         </Link>
                         
@@ -113,7 +136,7 @@ onMounted(() => {
                 
                 <div v-if="mobileMenuOpen" class="md:hidden pb-4 border-t space-y-2 pt-4">
                     <Link 
-                        v-if="isAdmin()"
+                        v-if="isAdmin"
                         href="/admin/dashboard" 
                         class="flex items-center gap-2 px-4 py-3 bg-gradient-to-r from-red-600 to-orange-500 text-white rounded-lg font-semibold"
                         @click="mobileMenuOpen = false"
@@ -122,15 +145,27 @@ onMounted(() => {
                         Admin Panel
                     </Link>
                     
-                    <Link href="/" class="block px-4 py-3 text-gray-700 hover:bg-red-50 hover:text-red-600 rounded-lg font-semibold" @click="mobileMenuOpen = false">
+                    <Link 
+                        href="/" 
+                        :class="mobileLinkClass('/')"
+                        @click="mobileMenuOpen = false"
+                    >
                         Make Order
                     </Link>
                     
-                    <Link href="/orders" class="block px-4 py-3 text-gray-700 hover:bg-red-50 hover:text-red-600 rounded-lg font-semibold" @click="mobileMenuOpen = false">
+                    <Link 
+                        href="/orders" 
+                        :class="mobileLinkClass('/orders')"
+                        @click="mobileMenuOpen = false"
+                    >
                         My Orders
                     </Link>
                     
-                    <Link href="/settings/profile" class="block px-4 py-3 text-gray-700 hover:bg-red-50 hover:text-red-600 rounded-lg font-semibold" @click="mobileMenuOpen = false">
+                    <Link 
+                        href="/settings/profile" 
+                        :class="mobileLinkClass('/settings/profile')"
+                        @click="mobileMenuOpen = false"
+                    >
                         My Account
                     </Link>
                     
