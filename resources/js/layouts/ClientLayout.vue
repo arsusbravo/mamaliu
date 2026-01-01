@@ -27,6 +27,8 @@ const isAdmin = computed(() => page.props?.auth?.user?.usertype === 'master');
 // Helper to check if link is active
 const isActive = (path: string) => {
     const currentPath = page.url;
+    if (!currentPath) return false;
+    
     if (path === '/') {
         return currentPath === '/';
     }
