@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { Head, Link, router, usePage } from '@inertiajs/vue3';
-import { ShoppingCart, LogOut, User, Menu as MenuIcon, ChefHat, Settings } from 'lucide-vue-next';
-import { ref, computed } from 'vue';
+import { ShoppingCart, LogOut, Menu as MenuIcon, ChefHat, Settings } from 'lucide-vue-next';
+import { ref } from 'vue';
 
 interface Props {
     title?: string;
@@ -24,41 +24,6 @@ const mobileMenuOpen = ref(false);
 const page = usePage();
 const isAdmin = () => page.props?.auth?.user?.usertype === 'master';
 
-const isActive = (path: string) => {
-    const currentPath = page.url;
-    if (!currentPath) return false;
-    
-    if (path === '/') {
-        return currentPath === '/';
-    }
-    if (path === '/settings/profile') {
-        return currentPath.startsWith('/settings');
-    }
-    return currentPath.startsWith(path);
-};
-
-const linkClass = (path: string) => {
-    if (!page.url) {
-        // Return default class if page not ready
-        return 'px-4 py-2 text-gray-700 hover:text-red-600 transition-colors font-semibold rounded-lg hover:bg-red-50';
-    }
-    
-    return isActive(path)
-        ? 'px-4 py-2 bg-gradient-to-r from-red-600 to-orange-500 text-white transition-colors font-semibold rounded-lg shadow-md'
-        : 'px-4 py-2 text-gray-700 hover:text-red-600 transition-colors font-semibold rounded-lg hover:bg-red-50';
-};
-
-const mobileLinkClass = (path: string) => {
-    if (!page.url) {
-        // Return default class if page not ready
-        return 'block px-4 py-3 text-gray-700 hover:bg-red-50 hover:text-red-600 rounded-lg font-semibold';
-    }
-    
-    return isActive(path)
-        ? 'block px-4 py-3 bg-gradient-to-r from-red-600 to-orange-500 text-white rounded-lg font-semibold'
-        : 'block px-4 py-3 text-gray-700 hover:bg-red-50 hover:text-red-600 rounded-lg font-semibold';
-};
-
 const logout = () => {
     router.post('/logout');
 };
@@ -70,7 +35,7 @@ const logout = () => {
         
         <div class="h-2 bg-gradient-to-r from-red-600 via-orange-500 to-red-600"></div>
         
-        <header v-if="page.url" class="bg-white shadow-lg sticky top-0 z-50">
+        <header class="bg-white shadow-lg sticky top-0 z-50">
             <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                 <div class="flex items-center justify-between py-3">
                     <Link href="/" class="flex items-center gap-3 group">
@@ -102,15 +67,15 @@ const logout = () => {
                             Admin Panel
                         </Link>
                         
-                        <Link href="/" :class="linkClass('/')">
+                        <Link href="/" class="px-4 py-2 text-gray-700 hover:text-red-600 transition-colors font-semibold rounded-lg hover:bg-red-50">
                             Make Order
                         </Link>
                         
-                        <Link href="/orders" :class="linkClass('/orders')">
+                        <Link href="/orders" class="px-4 py-2 text-gray-700 hover:text-red-600 transition-colors font-semibold rounded-lg hover:bg-red-50">
                             My Orders
                         </Link>
                         
-                        <Link href="/settings/profile" :class="linkClass('/settings/profile')">
+                        <Link href="/settings/profile" class="px-4 py-2 text-gray-700 hover:text-red-600 transition-colors font-semibold rounded-lg hover:bg-red-50">
                             My Account
                         </Link>
                         
@@ -155,27 +120,15 @@ const logout = () => {
                         Admin Panel
                     </Link>
                     
-                    <Link 
-                        href="/" 
-                        :class="mobileLinkClass('/')"
-                        @click="mobileMenuOpen = false"
-                    >
+                    <Link href="/" class="block px-4 py-3 text-gray-700 hover:bg-red-50 hover:text-red-600 rounded-lg font-semibold" @click="mobileMenuOpen = false">
                         Make Order
                     </Link>
                     
-                    <Link 
-                        href="/orders" 
-                        :class="mobileLinkClass('/orders')"
-                        @click="mobileMenuOpen = false"
-                    >
+                    <Link href="/orders" class="block px-4 py-3 text-gray-700 hover:bg-red-50 hover:text-red-600 rounded-lg font-semibold" @click="mobileMenuOpen = false">
                         My Orders
                     </Link>
                     
-                    <Link 
-                        href="/settings/profile" 
-                        :class="mobileLinkClass('/settings/profile')"
-                        @click="mobileMenuOpen = false"
-                    >
+                    <Link href="/settings/profile" class="block px-4 py-3 text-gray-700 hover:bg-red-50 hover:text-red-600 rounded-lg font-semibold" @click="mobileMenuOpen = false">
                         My Account
                     </Link>
                     
