@@ -30,10 +30,10 @@ const breadcrumbItems: BreadcrumbItem[] = [
 ];
 
 const page = usePage();
-const user = page.props.auth.user;
+const user = page.props?.auth?.user;
 
 const Layout = computed(() => 
-    user.usertype === 'master' ? AppLayout : ClientLayout
+    user?.usertype === 'master' ? AppLayout : ClientLayout
 );
 </script>
 

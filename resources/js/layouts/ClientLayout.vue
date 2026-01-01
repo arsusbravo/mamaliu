@@ -22,7 +22,7 @@ const props = withDefaults(defineProps<Props>(), {
 const mobileMenuOpen = ref(false);
 
 const page = usePage();
-const isAdmin = computed(() => page.props.auth?.user?.usertype === 'master');
+const isAdmin = computed(() => page.props?.auth?.user?.usertype === 'master');
 
 // Helper to check if link is active
 const isActive = (path: string) => {
