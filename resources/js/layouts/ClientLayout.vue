@@ -22,7 +22,7 @@ const props = withDefaults(defineProps<Props>(), {
 const mobileMenuOpen = ref(false);
 
 const page = usePage();
-const isAdmin = computed(() => page.props?.auth?.user?.usertype === 'master');
+const isAdmin = () => page.props?.auth?.user?.usertype === 'master';
 
 const isActive = (path: string) => {
     const currentPath = page.url;
@@ -84,7 +84,7 @@ const logout = () => {
                     
                     <div class="hidden md:flex items-center gap-6">
                         <Link 
-                            v-if="isAdmin"
+                            v-if="isAdmin()"
                             href="/admin/dashboard" 
                             class="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-red-600 to-orange-500 hover:from-red-700 hover:to-orange-600 text-white transition-colors font-semibold rounded-lg shadow-md hover:shadow-lg"
                         >
