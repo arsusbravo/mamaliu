@@ -136,7 +136,7 @@ const logout = () => {
                 
                 <div v-if="mobileMenuOpen" class="md:hidden pb-4 border-t space-y-2 pt-4">
                     <Link 
-                        v-if="isAdmin"
+                        v-if="isAdmin()"
                         href="/admin/dashboard" 
                         class="flex items-center gap-2 px-4 py-3 bg-gradient-to-r from-red-600 to-orange-500 text-white rounded-lg font-semibold"
                         @click="mobileMenuOpen = false"
