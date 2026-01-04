@@ -67,29 +67,29 @@ const formatDate = (isoString: string) => {
 </script>
 
 <template>
-    <Head title="My Orders" />
+    <Head title="我的訂單" />
     
     <ClientLayout>
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
             <!-- Header -->
             <div class="mb-8">
                 <h1 class="text-4xl font-black text-transparent bg-clip-text bg-linear-to-r from-red-600 to-orange-500 mb-2">
-                    My Orders
+                    我的訂單
                 </h1>
-                <p class="text-gray-600">View your order history and details</p>
+                <p class="text-gray-600">查看您的訂單歷史與詳細資訊</p>
             </div>
 
             <!-- Empty State -->
             <div v-if="orders.length === 0" class="text-center py-20">
                 <div class="bg-white rounded-3xl shadow-xl p-12 max-w-md mx-auto">
                     <Package class="h-24 w-24 text-gray-300 mx-auto mb-6" />
-                    <h2 class="text-2xl font-bold text-gray-800 mb-4">No Orders Yet</h2>
-                    <p class="text-gray-600 mb-6">Start ordering!</p>
+                    <h2 class="text-2xl font-bold text-gray-800 mb-4">尚無訂單</h2>
+                    <p class="text-gray-600 mb-6">開始點餐吧！</p>
                     <Button 
                         @click="$inertia.visit('/')"
                         class="bg-linear-to-r from-red-600 to-orange-500 hover:from-red-700 hover:to-orange-600"
                     >
-                        Browse Menu
+                        瀏覽菜單
                     </Button>
                 </div>
             </div>
@@ -106,7 +106,7 @@ const formatDate = (isoString: string) => {
                         <CardTitle class="flex items-center justify-between">
                             <div class="flex items-center gap-2">
                                 <Calendar class="h-5 w-5 text-red-600" />
-                                <span class="text-lg">Week {{ order.week }}, {{ order.year }}</span>
+                                <span class="text-lg">第 {{ order.week }} 週，{{ order.year }}</span>
                             </div>
                         </CardTitle>
                         <p class="text-sm text-gray-600 mt-1">{{ formatDate(order.created_at) }}</p>
@@ -114,11 +114,11 @@ const formatDate = (isoString: string) => {
                     <CardContent class="p-6">
                         <div class="space-y-3">
                             <div class="flex items-center justify-between">
-                                <span class="text-gray-600">Items</span>
+                                <span class="text-gray-600">品項</span>
                                 <span class="font-semibold">{{ order.items_count }}</span>
                             </div>
                             <div class="flex items-center justify-between text-lg font-bold border-t pt-3">
-                                <span>Total</span>
+                                <span>總計</span>
                                 <span class="text-transparent bg-clip-text bg-linear-to-r from-red-600 to-orange-500">
                                     €{{ order.total.toFixed(2) }}
                                 </span>
@@ -136,25 +136,25 @@ const formatDate = (isoString: string) => {
                 <div v-if="isNewOrder" class="bg-linear-to-r from-red-600 to-orange-500 text-white p-6 rounded-xl mb-4 -mt-6 -mx-6">
                     <div class="flex items-center justify-center gap-3 mb-2">
                         <CheckCircle2 class="h-8 w-8" />
-                        <h2 class="text-2xl font-black">Thank You!</h2>
+                        <h2 class="text-2xl font-black">謝謝您！</h2>
                     </div>
-                    <p class="text-center text-white/90">Your order has been placed successfully</p>
+                    <p class="text-center text-white/90">您的訂單已成功送出</p>
                 </div>
                 
                 <DialogHeader>
                     <DialogTitle class="text-2xl font-bold flex items-center gap-2">
                         <Calendar class="h-6 w-6 text-red-600" />
-                        Week {{ selectedOrder?.week }}, {{ selectedOrder?.year }}
+                        第 {{ selectedOrder?.week }} 週，{{ selectedOrder?.year }}
                     </DialogTitle>
                     <DialogDescription>
-                        Order placed on {{ selectedOrder ? formatDate(selectedOrder.created_at) : '' }}
+                        訂單建立於 {{ selectedOrder ? formatDate(selectedOrder.created_at) : '' }}
                     </DialogDescription>
                 </DialogHeader>
                 
                 <div v-if="selectedOrder" class="space-y-4 mt-4">
                     <!-- Order Items -->
                     <div class="space-y-3">
-                        <h3 class="font-semibold text-lg">Order Items</h3>
+                        <h3 class="font-semibold text-lg">訂單品項</h3>
                         <div 
                             v-for="item in selectedOrder.orders" 
                             :key="item.id"
@@ -176,7 +176,7 @@ const formatDate = (isoString: string) => {
                     <!-- Total -->
                     <div class="border-t-2 pt-4 mt-4">
                         <div class="flex justify-between items-center text-2xl font-black">
-                            <span>Total</span>
+                            <span>總計</span>
                             <span class="text-transparent bg-clip-text bg-linear-to-r from-red-600 to-orange-500">
                                 €{{ selectedOrder.total.toFixed(2) }}
                             </span>
@@ -187,7 +187,7 @@ const formatDate = (isoString: string) => {
                     <div v-if="isNewOrder" class="bg-orange-50 p-4 rounded-xl text-center border-2 border-orange-200">
                         <Heart class="h-6 w-6 text-red-600 mx-auto mb-2" />
                         <p class="text-gray-700 font-medium">
-                            We appreciate your order! Your order will be prepared with love.
+                            感謝您的訂購！我們將用心為您準備餐點。
                         </p>
                     </div>
                 </div>

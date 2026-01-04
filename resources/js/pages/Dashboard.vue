@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import { computed } from 'vue';
 import { router } from '@inertiajs/vue3';
 import AppLayout from '@/layouts/AppLayout.vue';
 import { type BreadcrumbItem } from '@/types';
@@ -155,10 +154,12 @@ const goToWeekmenusList = () => {
             <!-- Stats Cards -->
             <div class="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
                 <!-- Orders This Week -->
-                <Card class="cursor-pointer hover:bg-accent transition-colors" @click="goToCurrentOrders">
+                <Card class="cursor-pointer hover:bg-accent transition-colors border-l-4 border-blue-500 bg-linear-to-r from-blue-50 to-white" @click="goToCurrentOrders">
                     <CardHeader class="flex flex-row items-center justify-between space-y-0 pb-2">
                         <CardTitle class="text-sm font-medium">Orders This Week</CardTitle>
-                        <ShoppingCart class="h-4 w-4 text-muted-foreground" />
+                        <div class="p-2 bg-blue-500 rounded-lg">
+                            <ShoppingCart class="h-4 w-4 text-white" />
+                        </div>
                     </CardHeader>
                     <CardContent>
                         <div v-if="stats.total_orders_this_week === 0" class="space-y-2">
@@ -168,7 +169,7 @@ const goToWeekmenusList = () => {
                             </p>
                         </div>
                         <div v-else>
-                            <div class="text-2xl font-bold">{{ stats.total_orders_this_week }}</div>
+                            <div class="text-2xl font-bold text-blue-700">{{ stats.total_orders_this_week }}</div>
                             <p class="text-xs text-muted-foreground">
                                 Week {{ currentWeek }}, {{ currentYear }}
                             </p>
@@ -177,13 +178,15 @@ const goToWeekmenusList = () => {
                 </Card>
 
                 <!-- Revenue This Quarter -->
-                <Card class="cursor-pointer hover:bg-accent transition-colors" @click="goToOrders">
+                <Card class="cursor-pointer hover:bg-accent transition-colors border-l-4 border-green-500 bg-linear-to-r from-green-50 to-white" @click="goToOrders">
                     <CardHeader class="flex flex-row items-center justify-between space-y-0 pb-2">
                         <CardTitle class="text-sm font-medium">Revenue This Quarter</CardTitle>
-                        <DollarSign class="h-4 w-4 text-muted-foreground" />
+                        <div class="p-2 bg-green-500 rounded-lg">
+                            <DollarSign class="h-4 w-4 text-white" />
+                        </div>
                     </CardHeader>
                     <CardContent>
-                        <div class="text-2xl font-bold">
+                        <div class="text-2xl font-bold text-green-700">
                             €{{ (stats.total_revenue_this_quarter || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }}
                         </div>
                         <p class="text-xs text-muted-foreground">
@@ -193,13 +196,15 @@ const goToWeekmenusList = () => {
                 </Card>
 
                 <!-- Pre-Orders -->
-                <Card class="cursor-pointer hover:bg-accent transition-colors" @click="goToFirstPreOrder">
+                <Card class="cursor-pointer hover:bg-accent transition-colors border-l-4 border-orange-500 bg-linear-to-r from-orange-50 to-white" @click="goToFirstPreOrder">
                     <CardHeader class="flex flex-row items-center justify-between space-y-0 pb-2">
                         <CardTitle class="text-sm font-medium">Pre-Orders</CardTitle>
-                        <Calendar class="h-4 w-4 text-muted-foreground" />
+                        <div class="p-2 bg-orange-500 rounded-lg">
+                            <Calendar class="h-4 w-4 text-white" />
+                        </div>
                     </CardHeader>
                     <CardContent>
-                        <div class="text-2xl font-bold">{{ stats.total_pre_orders }}</div>
+                        <div class="text-2xl font-bold text-orange-700">{{ stats.total_pre_orders }}</div>
                         <p class="text-xs text-muted-foreground">
                             Future weeks
                         </p>
@@ -207,14 +212,16 @@ const goToWeekmenusList = () => {
                 </Card>
 
                 <!-- Week Menus This Quarter -->
-                <Card class="cursor-pointer hover:bg-accent transition-colors" @click="goToWeekmenusList">
+                <Card class="cursor-pointer hover:bg-accent transition-colors border-l-4 border-purple-500 bg-linear-to-r from-purple-50 to-white" @click="goToWeekmenusList">
                     <CardHeader class="flex flex-row items-center justify-between space-y-0 pb-2">
                         <CardTitle class="text-sm font-medium">Week Menus This Quarter</CardTitle>
-                        <UtensilsCrossed class="h-4 w-4 text-muted-foreground" />
+                        <div class="p-2 bg-purple-500 rounded-lg">
+                            <UtensilsCrossed class="h-4 w-4 text-white" />
+                        </div>
                     </CardHeader>
                     <CardContent>
-                        <div class="text-2xl font-bold">
-                            {{ stats.total_weekmenus_this_quarter || 0 }} <span class="font-thin text-xs italic text-slate-200">of appr. 13 weeks</span>
+                        <div class="text-2xl font-bold text-purple-700">
+                            {{ stats.total_weekmenus_this_quarter || 0 }} <span class="font-thin text-xs italic text-slate-400">of appr. 13 weeks</span>
                         </div>
                         <p class="text-xs text-muted-foreground">
                             Q{{ stats.current_quarter || 1 }} {{ currentYear }}
@@ -226,7 +233,7 @@ const goToWeekmenusList = () => {
             <!-- Main Content Grid -->
             <div class="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
                 <!-- Recent Orders -->
-                <Card class="col-span-4">
+                <Card class="col-span-1 md:col-span-2 lg:col-span-4">
                     <CardHeader>
                         <div class="flex items-center justify-between">
                             <div>
@@ -241,7 +248,7 @@ const goToWeekmenusList = () => {
                     <CardContent>
                         <!-- Empty State -->
                         <div v-if="recentOrders.length === 0" class="text-center py-12">
-                            <ShoppingCart class="h-16 w-16 text-muted-foreground mx-auto mb-4 opacity-50" />
+                            <ShoppingCart class="h-16 w-16 text-blue-300 mx-auto mb-4 opacity-50" />
                             <h3 class="text-lg font-semibold mb-2">No Orders Yet</h3>
                             <p class="text-sm text-muted-foreground mb-4">
                                 Start by creating week menus, then clients can place orders
@@ -276,7 +283,7 @@ const goToWeekmenusList = () => {
                                         <span>{{ formatTime(order.latest_date) }}</span>
                                     </div>
                                 </div>
-                                <div class="font-medium">
+                                <div class="font-medium text-green-600">
                                     €{{ order.total.toFixed(2) }}
                                 </div>
                             </div>
@@ -285,7 +292,7 @@ const goToWeekmenusList = () => {
                 </Card>
 
                 <!-- Pre-Orders & Notes -->
-                <Card class="col-span-3">
+                <Card class="col-span-1 md:col-span-2 lg:col-span-3">
                     <CardHeader>
                         <div class="flex items-center justify-between">
                             <div>
@@ -313,7 +320,7 @@ const goToWeekmenusList = () => {
                                         From week {{ order.earliest_week }}, {{ order.earliest_year }}
                                     </p>
                                 </div>
-                                <div class="text-sm font-medium">
+                                <div class="text-sm font-medium text-orange-600">
                                     €{{ order.total.toFixed(2) }}
                                 </div>
                             </div>
@@ -330,7 +337,7 @@ const goToWeekmenusList = () => {
             <Card v-if="recentNotes.length > 0">
                 <CardHeader>
                     <CardTitle class="flex items-center gap-2">
-                        <MessageSquare class="h-5 w-5" />
+                        <MessageSquare class="h-5 w-5 text-purple-500" />
                         Recent Client Notes
                     </CardTitle>
                     <CardDescription>Notes from the last 7 days</CardDescription>
@@ -340,7 +347,7 @@ const goToWeekmenusList = () => {
                         <div 
                             v-for="(note, index) in recentNotes" 
                             :key="index"
-                            class="border-l-2 border-primary pl-4 py-2"
+                            class="border-l-2 border-purple-500 pl-4 py-2"
                         >
                             <div class="flex items-center justify-between mb-1">
                                 <p class="text-sm font-medium">{{ note.client_name }}</p>

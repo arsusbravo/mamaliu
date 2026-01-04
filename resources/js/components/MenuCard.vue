@@ -67,7 +67,7 @@ const imageUrl = computed(() => props.weekmenu.menu.image_url || '');
                 <div class="absolute inset-0 bg-linear-to-t from-black/50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
             </div>
             <div v-else class="w-full h-56 bg-linear-to-br from-red-100 to-orange-100 flex items-center justify-center">
-                <span class="text-gray-400 text-lg font-semibold">🍜 No image</span>
+                <span class="text-gray-400 text-lg font-semibold">🍜 沒有圖片</span>
             </div>
             
             <button 
@@ -79,7 +79,7 @@ const imageUrl = computed(() => props.weekmenu.menu.image_url || '');
             </button>
             
             <div v-if="weekmenu.quantity <= 5" class="absolute top-3 left-3 bg-linear-to-r from-red-600 to-orange-500 text-white px-3 py-1.5 rounded-full text-xs font-bold shadow-lg">
-                {{ weekmenu.quantity }} portions left!
+                僅剩 {{ weekmenu.quantity }} 份！
             </div>
         </div>
         
@@ -89,7 +89,7 @@ const imageUrl = computed(() => props.weekmenu.menu.image_url || '');
 
             <div v-if="weekmenu.group" class="flex items-center gap-1.5 text-xs text-gray-600 mb-3 bg-orange-50 px-2 py-1.5 rounded-lg">
                 <MapPin class="h-3.5 w-3.5 text-orange-600" />
-                <span class="font-medium">Delivery place: <span class="text-gray-800 font-semibold">{{ weekmenu.group.name }}</span></span>
+                <span class="font-medium">送餐地點：<span class="text-gray-800 font-semibold">{{ weekmenu.group.name }}</span></span>
             </div>
             
             <div class="flex items-center justify-between mb-5">
@@ -122,7 +122,7 @@ const imageUrl = computed(() => props.weekmenu.menu.image_url || '');
                     class="flex-1 bg-linear-to-r from-red-600 to-orange-500 hover:from-red-700 hover:to-orange-600 text-white font-bold py-6 rounded-xl shadow-lg hover:shadow-xl transition-all"
                 >
                     <ShoppingBag class="h-4 w-4 mr-2" />
-                    Add to Cart
+                    加入購物車
                 </Button>
             </div>
         </CardContent>

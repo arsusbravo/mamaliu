@@ -371,13 +371,38 @@ watch(() => page.props.flash, (flash: any) => {
             </div>
 
             <!-- Pagination -->
-            <div v-if="menus.last_page > 1" class="flex items-center justify-between">
-                <div class="text-sm text-muted-foreground">
+            <div v-if="menus.last_page > 1" class="flex items-center justify-between gap-2">
+                <div class="text-sm text-muted-foreground hidden sm:block">
                     Showing {{ ((menus.current_page - 1) * menus.per_page) + 1 }} to 
                     {{ Math.min(menus.current_page * menus.per_page, menus.total) }} of 
                     {{ menus.total }} menus
                 </div>
-                <div class="flex gap-2">
+                
+                <!-- Mobile pagination (arrows + current page) -->
+                <div class="flex sm:hidden items-center gap-2 ml-auto">
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        :disabled="menus.current_page === 1"
+                        @click="goToPage(menus.links[0]?.url)"
+                    >
+                        ←
+                    </Button>
+                    <span class="text-sm font-medium px-2">
+                        {{ menus.current_page }} / {{ menus.last_page }}
+                    </span>
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        :disabled="menus.current_page === menus.last_page"
+                        @click="goToPage(menus.links[menus.links.length - 1]?.url)"
+                    >
+                        →
+                    </Button>
+                </div>
+                
+                <!-- Desktop pagination (full page numbers) -->
+                <div class="hidden sm:flex gap-2">
                     <Button
                         v-for="link in menus.links"
                         :key="link.label"

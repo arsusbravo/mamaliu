@@ -16,6 +16,6 @@ defineProps<Props>();
     <img
         src="/images/logo.png"
         alt="App Logo"
-        class="h-8 w-8 rounded-md border border-gray-200 bg-white p-1 shadow-sm"
+        class="h-12 w-12 rounded-md border border-gray-200 bg-white p-1 shadow-sm"
         :class="className">
 </template>

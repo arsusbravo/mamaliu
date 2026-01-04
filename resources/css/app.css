@@ -2,6 +2,37 @@
 
 @import 'tw-animate-css';
 
+@import "tailwindcss";
+
+/* Font faces */
+@font-face {
+    font-family: 'LXGW WenKai Mono TC';
+    src: url('/fonts/LXGW_WenKai_Mono_TC/LXGWWenKaiMonoTC-Regular.ttf') format('truetype');
+    font-weight: 400;
+    font-style: normal;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: 'LXGW WenKai Mono TC';
+    src: url('/fonts/LXGW_WenKai_Mono_TC/LXGWWenKaiMonoTC-Bold.ttf') format('truetype');
+    font-weight: 700;
+    font-style: normal;
+}
+
+@font-face {
+    font-family: 'Noto Sans TC';
+    src: url('/fonts/Noto_Sans_TC/NotoSansTC-VariableFont_wght.ttf') format('truetype');
+    font-weight: 100 900;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: 'Latin Fallback';
+    src: local('Segoe UI'), local('Arial');
+    unicode-range: U+0000-00FF, U+0100-017F; /* Latin characters */
+}
+
 @source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
 @source '../../storage/framework/views/*.php';
 
@@ -12,6 +43,8 @@
         Instrument Sans, ui-sans-serif, system-ui, sans-serif,
         'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol',
         'Noto Color Emoji';
+    --font-family-wenkai: "LXGW WenKai Mono TC", "Latin Fallback", "Segoe UI", system-ui, -apple-system, sans-serif;
+    --font-family-noto-tc: "Noto Sans TC", "Latin Fallback", "Segoe UI", system-ui, -apple-system, sans-serif;
 
     --radius-lg: var(--radius);
     --radius-md: calc(var(--radius) - 2px);
@@ -115,15 +148,17 @@
     --chart-4: hsl(43 74% 66%);
     --chart-5: hsl(27 87% 67%);
     --radius: 0.5rem;
-    --sidebar-background: hsl(0 0% 98%);
-    --sidebar-foreground: hsl(240 5.3% 26.1%);
-    --sidebar-primary: hsl(0 72% 47%);  /* Match primary */
-    --sidebar-primary-foreground: hsl(0 0% 98%);
-    --sidebar-accent: hsl(0 0% 94%);
-    --sidebar-accent-foreground: hsl(0 0% 30%);
-    --sidebar-border: hsl(0 0% 91%);
-    --sidebar-ring: hsl(0 72% 47%);  /* Match primary */
-    --sidebar: hsl(0 0% 98%);
+    
+    /* Updated sidebar colors - more colorful and professional */
+    --sidebar-background: hsl(0 72% 97%);  /* Very subtle red tint */
+    --sidebar-foreground: hsl(0 10% 25%);  /* Warm dark gray */
+    --sidebar-primary: hsl(0 72% 47%);  /* Red - active state */
+    --sidebar-primary-foreground: hsl(0 0% 100%);  /* White text on red */
+    --sidebar-accent: hsl(0 80% 95%);  /* Light red for hover */
+    --sidebar-accent-foreground: hsl(0 72% 35%);  /* Darker red text */
+    --sidebar-border: hsl(0 50% 88%);  /* Subtle red border */
+    --sidebar-ring: hsl(0 72% 47%);  /* Red focus ring */
+    --sidebar: hsl(0 72% 97%);
 }
 
 .dark {
@@ -151,15 +186,17 @@
     --chart-3: hsl(30 80% 55%);
     --chart-4: hsl(280 65% 60%);
     --chart-5: hsl(340 75% 55%);
-    --sidebar-background: hsl(0 0% 7%);
-    --sidebar-foreground: hsl(0 0% 95.9%);
-    --sidebar-primary: hsl(360, 100%, 100%);
+    
+    /* Dark mode sidebar - subtle warm tones */
+    --sidebar-background: hsl(0 10% 8%);  /* Warm dark background */
+    --sidebar-foreground: hsl(0 5% 90%);  /* Warm light text */
+    --sidebar-primary: hsl(0 72% 55%);  /* Brighter red for dark mode */
     --sidebar-primary-foreground: hsl(0 0% 100%);
-    --sidebar-accent: hsl(0 0% 15.9%);
-    --sidebar-accent-foreground: hsl(240 4.8% 95.9%);
-    --sidebar-border: hsl(0 0% 15.9%);
-    --sidebar-ring: hsl(217.2 91.2% 59.8%);
-    --sidebar: hsl(240 5.9% 10%);
+    --sidebar-accent: hsl(0 50% 15%);  /* Dark red hover */
+    --sidebar-accent-foreground: hsl(0 70% 70%);  /* Light red text */
+    --sidebar-border: hsl(0 30% 18%);  /* Warm dark border */
+    --sidebar-ring: hsl(0 72% 55%);
+    --sidebar: hsl(0 10% 8%);
 }
 
 @layer base {

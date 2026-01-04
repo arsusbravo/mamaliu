@@ -311,13 +311,38 @@ watch(() => page.props.flash, (flash: any) => {
             </div>
 
             <!-- Pagination -->
-            <div v-if="clients.last_page > 1" class="flex items-center justify-between">
-                <div class="text-sm text-muted-foreground">
+            <div v-if="clients.last_page > 1" class="flex items-center justify-between gap-2">
+                <div class="text-sm text-muted-foreground hidden sm:block">
                     Showing {{ ((clients.current_page - 1) * clients.per_page) + 1 }} to 
                     {{ Math.min(clients.current_page * clients.per_page, clients.total) }} of 
                     {{ clients.total }} clients
                 </div>
-                <div class="flex gap-2">
+                
+                <!-- Mobile pagination -->
+                <div class="flex sm:hidden items-center gap-2 ml-auto">
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        :disabled="clients.current_page === 1"
+                        @click="goToPage(clients.links[0]?.url)"
+                    >
+                        ←
+                    </Button>
+                    <span class="text-sm font-medium px-2">
+                        {{ clients.current_page }} / {{ clients.last_page }}
+                    </span>
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        :disabled="clients.current_page === clients.last_page"
+                        @click="goToPage(clients.links[clients.links.length - 1]?.url)"
+                    >
+                        →
+                    </Button>
+                </div>
+                
+                <!-- Desktop pagination -->
+                <div class="hidden sm:flex gap-2">
                     <Button
                         v-for="link in clients.links"
                         :key="link.label"

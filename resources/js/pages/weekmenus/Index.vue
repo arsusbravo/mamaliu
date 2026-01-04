@@ -7,7 +7,7 @@ import { Head, Link } from '@inertiajs/vue3';
 import FormWeekmenu from '@/components/FormWeekmenu.vue';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Eye, EyeOff } from 'lucide-vue-next';
+import { Eye, EyeOff, Filter } from 'lucide-vue-next';
 import {
     Dialog,
     DialogContent,
@@ -220,6 +220,24 @@ const handleWeekChange = () => {
     goToWeek(selectedWeek.value, selectedYear.value);
 };
 
+// Add filter toggle
+const showFilters = ref(true);
+
+// Generate week options (1-53)
+const weekOptions = computed(() => {
+    return Array.from({ length: 53 }, (_, i) => i + 1);
+});
+
+// Generate year options (3 years ago to 1 year later)
+const yearOptions = computed(() => {
+    const currentYear = new Date().getFullYear();
+    const years = [];
+    for (let year = currentYear - 3; year <= currentYear + 1; year++) {
+        years.push(year);
+    }
+    return years;
+});
+
 const handleGroupFilter = () => {
     router.get('/admin/weekmenus', {
         week: selectedWeek.value,
@@ -376,67 +394,147 @@ const updateQuantity = (weekmenu: Weekmenu, newQuantity: number) => {
 
     <AppLayout :breadcrumbs="breadcrumbs">
         <div class="flex h-full flex-1 flex-col gap-4 overflow-x-auto rounded-xl p-4">
-            <div class="flex items-center justify-between">
+            <!-- Header with responsive buttons -->
+            <div class="flex items-center justify-between gap-2">
                 <h2 class="text-2xl font-bold">Week Menus</h2>
                 <div class="flex items-center justify-end gap-2">
-                    <Button @click="openAddDialog">Add Week Menu</Button>
-                    <Button variant="destructive" @click="openCloseOrderDialog" v-if="draggableWeekmenus.length > 0">
-                        Close Order
+                    <!-- Toggle filters on mobile -->
+                    <Button 
+                        variant="outline" 
+                        size="sm"
+                        @click="showFilters = !showFilters"
+                        class="md:hidden"
+                    >
+                        <Filter class="h-4 w-4" />
                     </Button>
+                    
+                    <Button @click="openAddDialog" size="sm">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 md:mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                        </svg>
+                        <span class="hidden md:inline">Add Week Menu</span>
+                    </Button>
+                    
+                    <Button variant="destructive" @click="openCloseOrderDialog" v-if="draggableWeekmenus.length > 0" size="sm">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 md:mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                        <span class="hidden md:inline">Close Order</span>
+                    </Button>
+                    
                     <Button 
                         v-if="isFutureWeek && draggableWeekmenus.length > 0"
                         :variant="hasInvitation ? 'default' : 'outline'"
                         @click="toggleInvitation"
+                        size="sm"
                     >
-                        <Eye v-if="hasInvitation" class="h-4 w-4 mr-2" />
-                        <EyeOff v-else class="h-4 w-4 mr-2" />
-                        {{ hasInvitation ? 'Pre-order visible' : 'Show as pre-order' }}
+                        <Eye v-if="hasInvitation" class="h-4 w-4 md:mr-2" />
+                        <EyeOff v-else class="h-4 w-4 md:mr-2" />
+                        <span class="hidden md:inline">
+                            {{ hasInvitation ? 'Pre-order visible' : 'Show as pre-order' }}
+                        </span>
                     </Button>
                 </div>
             </div>
 
-            <!-- Week/Year Navigation WITH Group Filter -->
-            <div class="flex items-center gap-4">
-                <div class="flex items-center gap-2">
-                    <label for="week" class="text-sm font-medium">Week:</label>
-                    <Input
-                        id="week"
-                        v-model.number="selectedWeek"
-                        type="number"
-                        min="1"
-                        max="53"
-                        class="w-20"
-                        @change="handleWeekChange"
-                    />
-                </div>
-                
-                <div class="flex items-center gap-2">
-                    <label for="year" class="text-sm font-medium">Year:</label>
-                    <Input
-                        id="year"
-                        v-model.number="selectedYear"
-                        type="number"
-                        min="2020"
-                        max="2100"
-                        class="w-24"
-                        @change="handleWeekChange"
-                    />
+            <!-- Filters Section -->
+            <div class="space-y-3">
+                <!-- Desktop layout (always visible) -->
+                <div class="hidden md:flex md:items-center md:gap-4">
+                    <div class="flex items-center gap-2">
+                        <label for="week" class="text-sm font-medium">Week:</label>
+                        <select
+                            id="week"
+                            v-model.number="selectedWeek"
+                            @change="handleWeekChange"
+                            class="h-10 w-20 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                        >
+                            <option v-for="week in weekOptions" :key="week" :value="week">
+                                {{ week }}
+                            </option>
+                        </select>
+                    </div>
+                    
+                    <div class="flex items-center gap-2">
+                        <label for="year" class="text-sm font-medium">Year:</label>
+                        <select
+                            id="year"
+                            v-model.number="selectedYear"
+                            @change="handleWeekChange"
+                            class="h-10 w-24 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                        >
+                            <option v-for="year in yearOptions" :key="year" :value="year">
+                                {{ year }}
+                            </option>
+                        </select>
+                    </div>
+
+                    <div class="flex items-center gap-2">
+                        <label for="group-filter" class="text-sm font-medium">Group:</label>
+                        <select
+                            id="group-filter"
+                            v-model="selectedGroup"
+                            @change="handleGroupFilter"
+                            class="h-10 w-[200px] rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                        >
+                            <option :value="null">All Groups</option>
+                            <option value="none">No group</option>
+                            <option v-for="group in groups" :key="group.id" :value="String(group.id)">
+                                {{ group.name }}
+                            </option>
+                        </select>
+                    </div>
                 </div>
 
-                <div class="flex items-center gap-2">
-                    <label for="group-filter" class="text-sm font-medium">Group:</label>
-                    <select
-                        id="group-filter"
-                        v-model="selectedGroup"
-                        @change="handleGroupFilter"
-                        class="h-10 w-[200px] rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-                    >
-                        <option :value="null">All Groups</option>
-                        <option value="none">No group</option>
-                        <option v-for="group in groups" :key="group.id" :value="String(group.id)">
-                            {{ group.name }}
-                        </option>
-                    </select>
+                <!-- Mobile layout (toggleable) -->
+                <div v-show="showFilters" class="md:hidden space-y-3">
+                    <!-- Week & Year in one row -->
+                    <div class="grid grid-cols-2 gap-3">
+                        <div class="space-y-1.5">
+                            <label for="week-mobile" class="text-sm font-medium">Week</label>
+                            <select
+                                id="week-mobile"
+                                v-model.number="selectedWeek"
+                                @change="handleWeekChange"
+                                class="h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                            >
+                                <option v-for="week in weekOptions" :key="week" :value="week">
+                                    {{ week }}
+                                </option>
+                            </select>
+                        </div>
+                        
+                        <div class="space-y-1.5">
+                            <label for="year-mobile" class="text-sm font-medium">Year</label>
+                            <select
+                                id="year-mobile"
+                                v-model.number="selectedYear"
+                                @change="handleWeekChange"
+                                class="h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                            >
+                                <option v-for="year in yearOptions" :key="year" :value="year">
+                                    {{ year }}
+                                </option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Group filter - full width -->
+                    <div class="space-y-1.5">
+                        <label for="group-filter-mobile" class="text-sm font-medium">Group</label>
+                        <select
+                            id="group-filter-mobile"
+                            v-model="selectedGroup"
+                            @change="handleGroupFilter"
+                            class="h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                        >
+                            <option :value="null">All Groups</option>
+                            <option value="none">No group</option>
+                            <option v-for="group in groups" :key="group.id" :value="String(group.id)">
+                                {{ group.name }}
+                            </option>
+                        </select>
+                    </div>
                 </div>
             </div>
 
