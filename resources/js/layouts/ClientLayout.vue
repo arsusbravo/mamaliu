@@ -179,7 +179,7 @@ const logout = () => {
             </div>
         </header>
         
-        <main class="min-h-screen bg-gradient-to-br from-orange-50 via-red-50 to-orange-50">
+        <main class="min-h-screen bg-linear-to-br from-orange-50 via-red-50 to-orange-50">
             <slot />
         </main>
         
