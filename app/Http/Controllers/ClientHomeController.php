@@ -112,9 +112,7 @@ class ClientHomeController extends Controller
             
             // Validate quantity doesn't exceed weekmenu quantity
             if ($orderData['quantity'] > $weekmenu->quantity) {
-                return back()->withErrors([
-                    'orders' => "Quantity for {$weekmenu->menu->label} exceeds available quantity."
-                ]);
+                $orderData['quantity'] = $weekmenu->quantity;
             }
 
             // Check if order exists
@@ -155,6 +153,15 @@ class ClientHomeController extends Controller
             ->where('week', $firstOrder->week)
             ->where('year', $firstOrder->year)
             ->get();
+
+        // Substract ordered quantities from weekmenus
+        foreach ($createdOrders as $order) {
+            $weekmenu = Weekmenu::find($order->weekmenu_id);
+            if ($weekmenu) {
+                $weekmenu->quantity -= $order->quantity;
+                $weekmenu->save();
+            }
+        }
         
         // Send order confirmation email with ALL orders for the week
         try {

@@ -12,6 +12,7 @@ use Carbon\Carbon;
 use Maatwebsite\Excel\Facades\Excel;
 use Maatwebsite\Excel\Concerns\FromCollection;
 use Maatwebsite\Excel\Concerns\WithHeadings;
+use Maatwebsite\Excel\Concerns\WithColumnWidths;
 use Maatwebsite\Excel\Concerns\WithStyles;
 use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 use Mpdf\Mpdf;
@@ -152,7 +153,7 @@ class OrderController extends Controller
         
         $columnTotals[] = $grandTotalQuantity;
         $grandTotalPrice = $userOrders->sum('total_price');
-        $columnTotals[] = '€' . number_format($grandTotalPrice, 2);
+        $columnTotals[] = $grandTotalPrice;
 
         // Prepare headings
         $headings = ['Name'];
@@ -169,23 +170,53 @@ class OrderController extends Controller
                 $rowData[] = $row['menu_' . $menu->id];
             }
             $rowData[] = $row['total_quantity'];
-            $rowData[] = '€' . number_format($row['total_price'], 2);
+            $rowData[] = $row['total_price'];
             return $rowData;
         });
 
         // Add totals row
         $data->push($columnTotals);
 
+        // Get orders with notes grouped by user
+        $ordersWithNotes = $orders->filter(function ($order) {
+            return !empty($order->notes);
+        })->groupBy('user_id');
+
+        // Add notes section if there are any notes
+        if ($ordersWithNotes->isNotEmpty()) {
+            // Add spacing before notes section
+            $numColumns = count($headings);
+            $data->push(array_fill(0, $numColumns, ''));
+            $data->push(array_fill(0, $numColumns, ''));
+            
+            // Add notes header
+            $data->push(['NOTES']);
+            $data->push(['Client Name', 'Notes']);
+            
+            // Add notes rows
+            foreach ($ordersWithNotes as $userNotes) {
+                $user = $userNotes->first()->user;
+                $allNotes = $userNotes->pluck('notes')->filter()->unique()->implode('; ');
+                $data->push([$user->name, $allNotes]);
+            }
+        }
+
+        // Calculate last row positions
+        $totalRowPosition = $userOrders->count() + 1; // +1 for header
+        $notesHeaderPosition = $ordersWithNotes->isNotEmpty() ? $totalRowPosition + 4 : null;
+
         // Create export class
-        $export = new class($data, $headings, $data->count()) implements FromCollection, WithHeadings, WithStyles {
+        $export = new class($data, $headings, $totalRowPosition, $notesHeaderPosition) implements FromCollection, WithHeadings, WithStyles, \Maatwebsite\Excel\Concerns\WithColumnWidths {
             protected $data;
             protected $headings;
-            protected $lastRow;
+            protected $totalRowPosition;
+            protected $notesHeaderPosition;
             
-            public function __construct($data, $headings, $lastRow) {
+            public function __construct($data, $headings, $totalRowPosition, $notesHeaderPosition) {
                 $this->data = $data;
                 $this->headings = $headings;
-                $this->lastRow = $lastRow + 1; // +1 for header row
+                $this->totalRowPosition = $totalRowPosition;
+                $this->notesHeaderPosition = $notesHeaderPosition;
             }
             
             public function collection() {
@@ -196,11 +227,36 @@ class OrderController extends Controller
                 return $this->headings;
             }
             
-            public function styles(Worksheet $sheet) {
+            public function columnWidths(): array
+            {
+                // Find the longest name
+                $maxLength = 15;
+                foreach ($this->data as $row) {
+                    if (isset($row[0]) && is_string($row[0])) {
+                        $length = mb_strlen($row[0]);
+                        if ($length > $maxLength) {
+                            $maxLength = $length;
+                        }
+                    }
+                }
+                
                 return [
-                    1 => ['font' => ['bold' => true]], // Header row
-                    $this->lastRow => ['font' => ['bold' => true]], // Total row
+                    'A' => $maxLength + 3,
                 ];
+            }
+            
+            public function styles(Worksheet $sheet) {
+                $styles = [
+                    1 => ['font' => ['bold' => true]],
+                    $this->totalRowPosition => ['font' => ['bold' => true]],
+                ];
+                
+                if ($this->notesHeaderPosition !== null) {
+                    $styles[$this->notesHeaderPosition] = ['font' => ['bold' => true, 'size' => 14]];
+                    $styles[$this->notesHeaderPosition + 1] = ['font' => ['bold' => true]];
+                }
+                
+                return $styles;
             }
         };
 
@@ -332,6 +388,8 @@ class OrderController extends Controller
             'special_price' => 'nullable|numeric|min:0',
         ]);
 
+        $orderedQuantity = $order->quantity;
+
         if ($validated['quantity'] == 0) {
             $order->delete();
             return redirect()->back();
@@ -339,6 +397,14 @@ class OrderController extends Controller
         $order->quantity = $validated['quantity'];
         $order->special_price = $validated['special_price'];
         $order->save();
+
+        if ($orderedQuantity !== $validated['quantity']) {
+            $weekmenu = Weekmenu::find($order->weekmenu_id);
+            if ($weekmenu) {
+                $weekmenu->quantity += ($orderedQuantity - $validated['quantity']);
+                $weekmenu->save(); 
+            }
+        }
 
         return redirect()->back();
     }

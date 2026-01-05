@@ -11,7 +11,7 @@ class ClientController extends Controller
 {
     public function index(Request $request)
     {
-        $query = User::where('usertype', UserType::CLIENT);
+        $query = User::query();
 
         // Search
         if ($request->filled('search')) {
