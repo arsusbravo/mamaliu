@@ -21,12 +21,12 @@ class UserMigrateController extends Controller
         if ($user) {
             Log::info('User migrated', ['user' => $user->username]);
             $msg = '';
-            if ($user->registered !== 1) {
+            if ($user->reregistered !== 1) {
                 Log::info('User welcomed', ['user_id' => $user->id]);
                 $msg = '?welcome=1';
             }
             $user->client_token = null;
-            $user->registered = 1;
+            $user->reregistered = 1;
             $user->last_loggedin = now();
             $user->save();
             Auth::login($user, true);
