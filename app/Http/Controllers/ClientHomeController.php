@@ -92,7 +92,7 @@ class ClientHomeController extends Controller
             'currentWeek' => $currentWeek,
             'currentYear' => $currentYear,
             'userName' => $user->name,
-            'welcome' => $request->has('welcome', false),
+            'welcome' => $request->has('welcome'),
         ]);
     }
 
