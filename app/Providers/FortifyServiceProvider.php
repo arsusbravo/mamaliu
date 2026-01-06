@@ -61,13 +61,6 @@ class FortifyServiceProvider extends ServiceProvider
      */
     private function configureActions(): void
     {
-        Log::info('=== CONFIGURING ACTIONS ===');
-
-        Log::info('=== FORTIFY EMAIL CONFIG ===', [
-            'username_field' => config('fortify.username'),
-            'email_field' => config('fortify.email'),
-        ]);
-        
         Fortify::resetUserPasswordsUsing(ResetUserPassword::class);
         Fortify::createUsersUsing(CreateNewUser::class);
         

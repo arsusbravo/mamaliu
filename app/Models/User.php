@@ -86,7 +86,6 @@ class User extends Authenticatable implements CanResetPasswordContract
 
     public function sendPasswordResetNotification($token)
     {
-        Log::info('=== SENDING PASSWORD RESET EMAIL ===', ['token' => $token]);
         $this->notify(new \Illuminate\Auth\Notifications\ResetPassword($token));
     }
 

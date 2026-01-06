@@ -9,8 +9,6 @@ class UsernameUserProvider extends EloquentUserProvider
 {
     public function retrieveByCredentials(array $credentials)
     {
-        Log::info('UsernameUserProvider called', ['credentials' => $credentials]);
-        
         if (empty($credentials) ||
         (count($credentials) === 1 &&
             str_contains($this->firstCredentialKey($credentials), 'password'))) {
@@ -22,9 +20,6 @@ class UsernameUserProvider extends EloquentUserProvider
             $credentials['username'] = $credentials['email'];
             unset($credentials['email']);
         }
-        // If 'username' is already set, just use it (no conversion needed)
-
-        Log::info('Modified credentials', ['credentials' => $credentials]);
 
         $query = $this->newModelQuery();
 
@@ -37,8 +32,6 @@ class UsernameUserProvider extends EloquentUserProvider
         }
 
         $user = $query->first();
-        
-        Log::info('User retrieved', ['found' => $user ? 'yes' : 'no']);
 
         return $user;
     }

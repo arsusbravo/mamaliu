@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
-import { ShoppingCart, Plus, Minus, X, ZoomIn, Sparkles, Calendar } from 'lucide-vue-next';
+import { ShoppingCart, Plus, Minus, X, ZoomIn, Sparkles, Calendar, Strikethrough } from 'lucide-vue-next';
 
 interface Menu {
     id: number;
@@ -48,6 +48,7 @@ interface Props {
     currentWeek: number;
     currentYear: number;
     userName: string;
+    welcome: boolean;
 }
 
 const props = defineProps<Props>();
@@ -139,6 +140,7 @@ const selectedImageUrl = computed(() => selectedImage.value || '');
                             <Sparkles class="h-8 w-8 animate-pulse" />
                             你好，{{ userName }}！
                         </h1>
+                        <h3 v-if="welcome">您現在位於 <strong class="text-yellow-100">mamaliu.com</strong>！從現在起您可以在我們的新網域訂購，而不是舊的網域 <s class=" text-red-400">mama-liu.com</s>。</h3>
                         <div class="flex items-center gap-3 text-white/90 text-lg">
                             <Calendar class="h-5 w-5" />
                             <span class="font-semibold">第 {{ currentWeek }} 週，{{ currentYear }}</span>

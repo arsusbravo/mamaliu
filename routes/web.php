@@ -2,8 +2,6 @@
 
 use App\Constants\UserType;
 use Illuminate\Support\Facades\Route;
-use Inertia\Inertia;
-use Laravel\Fortify\Features;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\MenuController;
 use App\Http\Controllers\OrderController;
@@ -15,8 +13,7 @@ use App\Http\Controllers\InvoiceController;
 use App\Http\Controllers\ClientHomeController;
 use App\Http\Controllers\ClientOrderController;
 use App\Http\Controllers\InviteController;
-use Illuminate\Support\Facades\Auth;
-use App\Models\User;
+use App\Http\Controllers\UserMigrateController;
 
 Route::get('/images/menu-{id}.jpg', function ($id) {
     $menu = \App\Models\Menu::find($id);
@@ -29,24 +26,7 @@ Route::get('/images/menu-{id}.jpg', function ($id) {
 })->name('menu.image');
 
 // Client Registration Migration Route from mama-liu.com
-Route::get('/auth/migrate/{token}', function ($token) {
-    $parts = explode('|', $token);
-    
-    if (count($parts) !== 2 || now()->timestamp > $parts[1]) {
-        return redirect('/login');
-    }
-    
-    $user = User::where('client_token', $token)->first();
-    
-    if ($user) {
-        $user->client_token = null;
-        $user->registered = 1;
-        $user->save();
-        Auth::login($user, true);
-    }
-    
-    return redirect('/');
-});
+Route::get('/auth/migrate/{token}', [UserMigrateController::class, 'migrate'])->name('auth.migrate');
 
 // Master (Admin) Routes
 Route::middleware(['auth', 'usertype:' . UserType::ADMIN])->prefix('admin')->group(function () {
