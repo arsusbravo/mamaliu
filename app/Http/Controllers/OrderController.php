@@ -26,12 +26,14 @@ class OrderController extends Controller
         $currentYear = $request->get('year', Carbon::now()->year);
 
         // Get orders with relationships
-        $query = Order::with(['weekmenu.menu', 'user', 'group'])
+        $query = Order::with(['weekmenu.menu', 'user.group'])
             ->byWeek($currentWeek, $currentYear);
 
-        // Filter by group
+        // Filter by client's group
         if ($request->filled('group_id')) {
-            $query->where('group_id', $request->group_id);
+            $query->whereHas('user', function ($q) use ($request) {
+                $q->where('group_id', $request->group_id);
+            });
         }
 
         // Search by client name or menu name
@@ -51,8 +53,8 @@ class OrderController extends Controller
         // Group orders by user
         $groupedOrders = $orders->groupBy('user_id')->map(function ($userOrders) {
             $user = $userOrders->first()->user;
-            $orderGroup = $userOrders->first()->group;
-            
+            $userGroup = $user->group;
+
             // Calculate total
             $total = $userOrders->sum(function ($order) {
                 $price = $order->special_price ?? $order->weekmenu->menu->price;
@@ -61,7 +63,7 @@ class OrderController extends Controller
 
             return [
                 'user' => $user,
-                'group' => $orderGroup,
+                'group' => $userGroup,
                 'orders' => $userOrders,
                 'total' => $total,
                 'order_date' => $userOrders->first()->created_at,
@@ -90,11 +92,14 @@ class OrderController extends Controller
         $currentYear = $request->get('year', Carbon::now()->year);
 
         // Get orders with filters
-        $query = Order::with(['weekmenu.menu', 'user', 'group'])
+        $query = Order::with(['weekmenu.menu', 'user.group'])
             ->byWeek($currentWeek, $currentYear);
 
+        // Filter by client's group
         if ($request->filled('group_id')) {
-            $query->where('group_id', $request->group_id);
+            $query->whereHas('user', function ($q) use ($request) {
+                $q->where('group_id', $request->group_id);
+            });
         }
 
         if ($request->filled('search')) {
@@ -269,11 +274,14 @@ class OrderController extends Controller
         $currentYear = $request->get('year', Carbon::now()->year);
 
         // Get orders with same filters
-        $query = Order::with(['weekmenu.menu', 'user', 'group'])
+        $query = Order::with(['weekmenu.menu', 'user.group'])
             ->byWeek($currentWeek, $currentYear);
 
+        // Filter by client's group
         if ($request->filled('group_id')) {
-            $query->where('group_id', $request->group_id);
+            $query->whereHas('user', function ($q) use ($request) {
+                $q->where('group_id', $request->group_id);
+            });
         }
 
         if ($request->filled('search')) {
@@ -292,8 +300,8 @@ class OrderController extends Controller
         // Group orders by user
         $groupedOrders = $orders->groupBy('user_id')->map(function ($userOrders) {
             $user = $userOrders->first()->user;
-            $orderGroup = $userOrders->first()->group;
-            
+            $userGroup = $user->group;
+
             $total = $userOrders->sum(function ($order) {
                 $price = $order->special_price ?? $order->weekmenu->menu->price;
                 return $order->quantity * $price;
@@ -301,7 +309,7 @@ class OrderController extends Controller
 
             return [
                 'user' => $user,
-                'group' => $orderGroup,
+                'group' => $userGroup,
                 'orders' => $userOrders,
                 'total' => $total,
                 'order_date' => $userOrders->first()->created_at,

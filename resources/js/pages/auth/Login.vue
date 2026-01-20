@@ -11,12 +11,15 @@ import { register } from '@/routes';
 import { store } from '@/routes/login';
 import { request } from '@/routes/password';
 import { Form, Head } from '@inertiajs/vue3';
+import { ref } from 'vue';
 
 defineProps<{
     status?: string;
     canResetPassword: boolean;
     canRegister: boolean;
 }>();
+
+const rememberMe = ref(false);
 </script>
 
 <template class="font-[--font-family-wenkai]">
@@ -81,7 +84,8 @@ defineProps<{
 
                 <div class="flex items-center justify-between">
                     <Label for="remember" class="flex items-center space-x-3">
-                        <Checkbox id="remember" name="remember" :tabindex="3" />
+                        <input type="hidden" name="remember" :value="rememberMe ? '1' : '0'" />
+                        <Checkbox id="remember" v-model:checked="rememberMe" :tabindex="3" />
                         <span>記住我</span>
                     </Label>
                 </div>
