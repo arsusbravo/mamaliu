@@ -15,10 +15,15 @@ class ClientHomeController extends Controller
     public function index(Request $request)
     {
         $user = $request->user();
-        $currentWeek = Carbon::now()->week;
-        $currentYear = Carbon::now()->year;
+        $nowWeek = Carbon::now()->week;
+        $nowYear = Carbon::now()->year;
 
-        // Try to get weekmenus for current week
+        // Allow viewing specific week/year via URL params (for pre-orders)
+        $currentWeek = $request->get('week', $nowWeek);
+        $currentYear = $request->get('year', $nowYear);
+        $isPreOrder = ($currentYear > $nowYear) || ($currentYear == $nowYear && $currentWeek > $nowWeek);
+
+        // Try to get weekmenus for requested week
         $query = Weekmenu::with(['menu', 'group'])
             ->where('week', $currentWeek)
             ->where('year', $currentYear)
@@ -33,7 +38,6 @@ class ClientHomeController extends Controller
         }
 
         $weekmenus = $query->orderBy('ordering')->get();
-        $isPreOrder = false;
 
         // Check for future weekmenus
         $futureQuery = Weekmenu::with(['menu', 'group'])
@@ -58,13 +62,15 @@ class ClientHomeController extends Controller
             ->orderBy('ordering')
             ->get();
 
-        // If no weekmenus for current week, show future weekmenus instead
-        if ($weekmenus->isEmpty() && $futureWeekmenus->isNotEmpty()) {
-            $weekmenus = $futureWeekmenus;
-            $isPreOrder = true;
-            $currentWeek = $futureWeekmenus->first()->week;
-            $currentYear = $futureWeekmenus->first()->year;
-        }
+        // Get unique future weeks for pre-order navigation
+        $futureWeeks = $futureWeekmenus->groupBy(function ($wm) {
+            return $wm->year . '-' . $wm->week;
+        })->map(function ($group) {
+            return [
+                'week' => $group->first()->week,
+                'year' => $group->first()->year,
+            ];
+        })->values();
 
         return inertia('Home', [
             'weekmenus' => $weekmenus->map(function ($wm) {
@@ -87,11 +93,12 @@ class ClientHomeController extends Controller
                     ] : null,
                 ];
             }),
-            'isPreOrder' => $isPreOrder,
             'currentWeek' => $currentWeek,
             'currentYear' => $currentYear,
             'userName' => $user->name,
             'welcome' => $request->has('welcome'),
+            'futureWeeks' => $futureWeeks,
+            'isPreOrder' => $isPreOrder,
         ]);
     }
 

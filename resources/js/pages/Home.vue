@@ -42,16 +42,26 @@ interface CartItem {
     notes: string;
 }
 
+interface FutureWeek {
+    week: number;
+    year: number;
+}
+
 interface Props {
     weekmenus: Weekmenu[];
-    isPreOrder: boolean;
     currentWeek: number;
     currentYear: number;
     userName: string;
     welcome: boolean;
+    futureWeeks: FutureWeek[];
+    isPreOrder: boolean;
 }
 
 const props = defineProps<Props>();
+
+const goToWeek = (week: number, year: number) => {
+    router.get('/', { week, year });
+};
 
 const cart = ref<CartItem[]>([]);
 const showCart = ref(false);
@@ -157,10 +167,26 @@ const selectedImageUrl = computed(() => selectedImage.value || '');
 
             <!-- No Menus State -->
             <div v-if="weekmenus.length === 0" class="text-center py-20">
-                <div class="bg-white rounded-3xl shadow-xl p-12 max-w-md mx-auto">
+                <div class="bg-white rounded-3xl shadow-xl p-12 max-w-lg mx-auto">
                     <img src="/images/logo.png" alt="Mama Liu" class="h-32 w-32 object-contain mx-auto mb-6 opacity-50" />
                     <h2 class="text-3xl font-bold text-gray-800 mb-4">目前沒有菜單</h2>
-                    <p class="text-gray-600 text-lg">下週菜單即將推出，敬請期待！</p>
+                    <p class="text-gray-600 text-lg mb-6">本週菜單尚未推出，敬請期待！</p>
+
+                    <!-- Pre-order buttons for future weeks -->
+                    <div v-if="futureWeeks.length > 0" class="space-y-4">
+                        <p class="text-gray-500 text-sm">或者您可以預購以下週次的菜單：</p>
+                        <div class="flex flex-wrap justify-center gap-3">
+                            <Button
+                                v-for="fw in futureWeeks"
+                                :key="`${fw.year}-${fw.week}`"
+                                @click="goToWeek(fw.week, fw.year)"
+                                class="bg-linear-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 text-white font-bold px-6 py-3 rounded-xl shadow-lg hover:shadow-xl transition-all"
+                            >
+                                <Calendar class="h-4 w-4 mr-2" />
+                                第 {{ fw.week }} 週
+                            </Button>
+                        </div>
+                    </div>
                 </div>
             </div>
 
