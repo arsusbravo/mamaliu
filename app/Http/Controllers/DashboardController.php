@@ -86,6 +86,21 @@ class DashboardController extends Controller
                 });
         })->count();
 
+        // Get the latest week/year that has pre-orders
+        $latestPreOrder = Order::where(function ($query) use ($currentWeek, $currentYear) {
+            $query->where('year', '>', $currentYear)
+                ->orWhere(function ($q) use ($currentWeek, $currentYear) {
+                    $q->where('year', $currentYear)
+                        ->where('week', '>', $currentWeek);
+                });
+        })
+        ->orderBy('year', 'desc')
+        ->orderBy('week', 'desc')
+        ->first();
+
+        $latestPreOrderWeek = $latestPreOrder ? $latestPreOrder->week : $currentWeek;
+        $latestPreOrderYear = $latestPreOrder ? $latestPreOrder->year : $currentYear;
+
         // Recent orders grouped by client (last 10 clients with orders this quarter)
         $recentOrdersByClient = Order::whereBetween('created_at', [$quarterStart, $quarterEnd])
             ->with(['user', 'weekmenu.menu'])
@@ -144,6 +159,8 @@ class DashboardController extends Controller
             'recentNotes' => $recentNotes,
             'currentWeek' => $currentWeek,
             'currentYear' => $currentYear,
+            'latestPreOrderWeek' => $latestPreOrderWeek,
+            'latestPreOrderYear' => $latestPreOrderYear,
         ]);
     }
 }

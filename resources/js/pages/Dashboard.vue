@@ -56,6 +56,8 @@ interface Props {
     recentNotes?: RecentNote[];
     currentWeek?: number;
     currentYear?: number;
+    latestPreOrderWeek?: number;
+    latestPreOrderYear?: number;
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -72,6 +74,8 @@ const props = withDefaults(defineProps<Props>(), {
     recentNotes: () => [],
     currentWeek: 1,
     currentYear: 2025,
+    latestPreOrderWeek: 1,
+    latestPreOrderYear: 2025,
 });
 
 const breadcrumbs: BreadcrumbItem[] = [
@@ -106,8 +110,8 @@ const goToOrders = () => {
 
 const goToPreOrders = () => {
     router.get('/admin/orders', {
-        week: props.currentWeek + 1,
-        year: props.currentYear,
+        week: props.latestPreOrderWeek,
+        year: props.latestPreOrderYear,
     });
 };
 

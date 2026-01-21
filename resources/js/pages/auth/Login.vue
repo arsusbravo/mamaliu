@@ -52,7 +52,7 @@ const rememberMe = ref(false);
                         required
                         autofocus
                         :tabindex="1"
-                        autocomplete="email"
+                        autocomplete="username"
                         placeholder="email@example.com"
                     />
                     <InputError :message="errors.email" />
