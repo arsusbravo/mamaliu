@@ -35,36 +35,35 @@ class ClientHomeController extends Controller
         $weekmenus = $query->orderBy('ordering')->get();
         $isPreOrder = false;
 
-        // If no weekmenus for current week, get future weekmenus
-        if ($weekmenus->isEmpty()) {
-            $futureQuery = Weekmenu::with(['menu', 'group'])
-                ->where(function ($q) use ($currentWeek, $currentYear) {
-                    $q->where('year', '>', $currentYear)
-                      ->orWhere(function ($q2) use ($currentWeek, $currentYear) {
-                          $q2->where('year', $currentYear)
-                             ->where('week', '>', $currentWeek);
-                      });
-                })
-                ->where('quantity', '>', 0)
-                ->where('invitation', 1);
+        // Check for future weekmenus
+        $futureQuery = Weekmenu::with(['menu', 'group'])
+            ->where(function ($q) use ($currentWeek, $currentYear) {
+                $q->where('year', '>', $currentYear)
+                  ->orWhere(function ($q2) use ($currentWeek, $currentYear) {
+                      $q2->where('year', $currentYear)
+                         ->where('week', '>', $currentWeek);
+                  });
+            })
+            ->where('quantity', '>', 0);
 
-            if ($user->group_id) {
-                $futureQuery->where(function ($q) use ($user) {
-                    $q->whereNull('group_id')
-                      ->orWhere('group_id', $user->group_id);
-                });
-            }
+        if ($user->group_id) {
+            $futureQuery->where(function ($q) use ($user) {
+                $q->whereNull('group_id')
+                  ->orWhere('group_id', $user->group_id);
+            });
+        }
 
-            $weekmenus = $futureQuery->orderBy('year')
-                ->orderBy('week')
-                ->orderBy('ordering')
-                ->get();
+        $futureWeekmenus = $futureQuery->orderBy('year')
+            ->orderBy('week')
+            ->orderBy('ordering')
+            ->get();
 
-            if ($weekmenus->isNotEmpty()) {
-                $isPreOrder = true;
-                $currentWeek = $weekmenus->first()->week;
-                $currentYear = $weekmenus->first()->year;
-            }
+        // If no weekmenus for current week, show future weekmenus instead
+        if ($weekmenus->isEmpty() && $futureWeekmenus->isNotEmpty()) {
+            $weekmenus = $futureWeekmenus;
+            $isPreOrder = true;
+            $currentWeek = $futureWeekmenus->first()->week;
+            $currentYear = $futureWeekmenus->first()->year;
         }
 
         return inertia('Home', [
