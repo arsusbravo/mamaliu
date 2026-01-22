@@ -68,7 +68,7 @@ const getWeekNumber = () => {
 const form = useForm({
     week: props.weekmenu?.week || props.defaultWeek || props.currentWeek || getWeekNumber(),
     year: props.weekmenu?.year || props.defaultYear || props.currentYear || new Date().getFullYear(),
-    group_id: props.weekmenu?.group_id ? String(props.weekmenu.group_id) : '',
+    group_id: props.weekmenu?.group_id ? String(props.weekmenu.group_id) : 'none',
     menu_id: props.weekmenu?.menu_id ? String(props.weekmenu.menu_id) : '',
     quantity: props.weekmenu?.quantity || 1,
 });
@@ -78,7 +78,7 @@ const submit = () => {
     
     const submitData = {
         ...form.data(),
-        group_id: form.group_id ? Number(form.group_id) : null,
+        group_id: form.group_id && form.group_id !== 'none' ? Number(form.group_id) : null,
         menu_id: form.menu_id ? Number(form.menu_id) : null,
     };
     
@@ -145,9 +145,7 @@ const submit = () => {
                         >
                             {{ group.name }}
                         </SelectItem>
-                        <SelectItem
-                            :value="null"
-                        >
+                        <SelectItem value="none">
                             No location
                         </SelectItem>
                     </SelectContent>

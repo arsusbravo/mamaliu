@@ -27,6 +27,9 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->alias([
             'usertype' => \App\Http\Middleware\CheckUserType::class,
         ]);
+
+        // Store the intended URL and redirect guests to login
+        $middleware->redirectGuestsTo(fn ($request) => route('login'));
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         //

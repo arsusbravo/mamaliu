@@ -84,6 +84,14 @@ watch(() => props.groupId, (newVal) => {
     selectedGroup.value = newVal;
 });
 
+watch(() => props.currentWeek, (newVal) => {
+    selectedWeek.value = newVal;
+});
+
+watch(() => props.currentYear, (newVal) => {
+    selectedYear.value = newVal;
+});
+
 const breadcrumbs: BreadcrumbItem[] = [
     {
         title: 'Dashboard',
@@ -115,11 +123,11 @@ watch(() => props.weekmenus, (newMenus) => {
     draggableWeekmenus.value = [...newMenus];
 }, { deep: true });
 
-// Empty weekmenu for add form
-const emptyWeekmenu: Weekmenu = {
+// Empty weekmenu for add form - computed so it updates when selectedWeek/selectedYear change
+const emptyWeekmenu = computed<Weekmenu>(() => ({
     id: 0,
-    week: props.currentWeek,
-    year: props.currentYear,
+    week: selectedWeek.value,
+    year: selectedYear.value,
     group_id: 0,
     menu_id: 0,
     quantity: 1,
@@ -127,7 +135,7 @@ const emptyWeekmenu: Weekmenu = {
     menu: null,
     group: null,
     invitation: 0,
-};
+}));
 
 const deleteForm = useForm({});
 const isDragging = ref(false);
@@ -179,7 +187,22 @@ const copyDeepLink = async () => {
     const deepLink = `${baseUrl}/?week=${selectedWeek.value}&year=${selectedYear.value}`;
 
     try {
-        await navigator.clipboard.writeText(deepLink);
+        // Try modern clipboard API first
+        if (navigator.clipboard && window.isSecureContext) {
+            await navigator.clipboard.writeText(deepLink);
+        } else {
+            // Fallback for non-secure contexts (HTTP)
+            const textArea = document.createElement('textarea');
+            textArea.value = deepLink;
+            textArea.style.position = 'fixed';
+            textArea.style.left = '-999999px';
+            textArea.style.top = '-999999px';
+            document.body.appendChild(textArea);
+            textArea.focus();
+            textArea.select();
+            document.execCommand('copy');
+            document.body.removeChild(textArea);
+        }
         toastVariant.value = 'success';
         toastMessage.value = 'Deep link copied to clipboard!';
         showToast.value = true;
@@ -600,7 +623,7 @@ const updateQuantity = (weekmenu: Weekmenu, newQuantity: number) => {
                 
                 <!-- Empty state outside draggable -->
                 <div v-if="draggableWeekmenus.length === 0" class="p-8 text-center text-muted-foreground border-t">
-                    No menus for week {{ currentWeek }}, {{ currentYear }}. Add your first menu to get started.
+                    No menus for week {{ selectedWeek }}, {{ selectedYear }}. Add your first menu to get started.
                 </div>
             </div>
 
@@ -610,19 +633,21 @@ const updateQuantity = (weekmenu: Weekmenu, newQuantity: number) => {
                     <DialogHeader>
                         <DialogTitle>Add Week Menu</DialogTitle>
                         <DialogDescription>
-                            Add a menu for week {{ currentWeek }}, {{ currentYear }}.
+                            Add a menu for week {{ selectedWeek }}, {{ selectedYear }}.
                         </DialogDescription>
                     </DialogHeader>
 
                     <FormWeekmenu
+                        :key="`add-${selectedWeek}-${selectedYear}`"
                         :weekmenu="emptyWeekmenu"
                         :menus="menus"
                         :groups="groups"
-                        :current-week="currentWeek"
-                        :current-year="currentYear"
+                        :current-week="selectedWeek"
+                        :current-year="selectedYear"
                         submit-url="/admin/weekmenus"
                         method="post"
                         @success="handleFormSuccess"
+                        @cancel="showAddDialog = false"
                     />
                 </DialogContent>
             </Dialog>
@@ -642,11 +667,12 @@ const updateQuantity = (weekmenu: Weekmenu, newQuantity: number) => {
                         :weekmenu="selectedWeekmenu"
                         :menus="menus"
                         :groups="groups"
-                        :current-week="currentWeek"
-                        :current-year="currentYear"
+                        :current-week="selectedWeek"
+                        :current-year="selectedYear"
                         :submit-url="`/admin/weekmenus/${selectedWeekmenu.id}`"
                         method="put"
                         @success="handleFormSuccess"
+                        @cancel="showEditDialog = false"
                     />
                 </DialogContent>
             </Dialog>

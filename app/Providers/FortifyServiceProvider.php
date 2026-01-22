@@ -34,7 +34,15 @@ class FortifyServiceProvider extends ServiceProvider
             public function toResponse($request)
             {
                 $user = Auth::user();
-                
+
+                // Check if there's an intended URL (the page user tried to access before login)
+                $intendedUrl = session()->pull('url.intended');
+
+                if ($intendedUrl) {
+                    return redirect($intendedUrl);
+                }
+
+                // Default redirects based on user type
                 if ($user->usertype === UserType::ADMIN) {
                     return redirect('/admin/dashboard');
                 }

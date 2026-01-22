@@ -53,7 +53,7 @@ class WeekmenuController extends Controller
         $validated = $request->validate([
             'week' => 'required|integer|min:1|max:53',
             'year' => 'required|integer|min:2020|max:2100',
-            'group_id' => 'required|exists:groups,id',
+            'group_id' => 'nullable|exists:groups,id',
             'menu_id' => 'required|exists:menu,id',
             'quantity' => 'required|integer|min:1',
         ]);
@@ -77,7 +77,7 @@ class WeekmenuController extends Controller
         $validated = $request->validate([
             'week' => 'required|integer|min:1|max:53',
             'year' => 'required|integer|min:2020|max:2100',
-            'group_id' => 'required|exists:groups,id',
+            'group_id' => 'nullable|exists:groups,id',
             'menu_id' => 'required|exists:menu,id',
             'quantity' => 'required|integer|min:1',
         ]);
