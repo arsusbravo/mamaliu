@@ -7,7 +7,7 @@ import { Head, Link } from '@inertiajs/vue3';
 import FormWeekmenu from '@/components/FormWeekmenu.vue';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Eye, EyeOff, Filter } from 'lucide-vue-next';
+import { Link2, Filter } from 'lucide-vue-next';
 import {
     Dialog,
     DialogContent,
@@ -173,48 +173,28 @@ const goToWeek = (week: number, year: number) => {
     });
 };
 
-// Add computed to check if selected week is in future
-const isFutureWeek = computed(() => {
-    const now = new Date();
-    const currentYear = now.getFullYear();
-    const currentWeek = Math.ceil((((now.getTime() - new Date(currentYear, 0, 1).getTime()) / 86400000) + 1) / 7);
-    
-    if (selectedYear.value > currentYear) return true;
-    if (selectedYear.value === currentYear && selectedWeek.value > currentWeek) return true;
-    return false;
-});
+// Copy deep link to clipboard
+const copyDeepLink = async () => {
+    const baseUrl = window.location.origin;
+    const deepLink = `${baseUrl}/?week=${selectedWeek.value}&year=${selectedYear.value}`;
 
-// Add handler for toggling invitation
-const toggleInvitation = async () => {
     try {
-        await axios.post('/admin/weekmenus/toggle-invitation', {
-            week: selectedWeek.value,
-            year: selectedYear.value,
-        });
-        
+        await navigator.clipboard.writeText(deepLink);
         toastVariant.value = 'success';
-        toastMessage.value = 'Pre-order visibility updated!';
+        toastMessage.value = 'Deep link copied to clipboard!';
         showToast.value = true;
         setTimeout(() => {
             showToast.value = false;
         }, 3000);
-        
-        // Reload the page to get updated data
-        router.reload();
     } catch (error) {
         toastVariant.value = 'destructive';
-        toastMessage.value = 'Failed to update pre-order visibility.';
+        toastMessage.value = 'Failed to copy link.';
         showToast.value = true;
         setTimeout(() => {
             showToast.value = false;
         }, 3000);
     }
 };
-
-// Add computed to check if invitation is enabled for current week
-const hasInvitation = computed(() => {
-    return draggableWeekmenus.value.some(wm => wm.invitation === 1);
-});
 
 const handleWeekChange = () => {
     goToWeek(selectedWeek.value, selectedYear.value);
@@ -422,17 +402,14 @@ const updateQuantity = (weekmenu: Weekmenu, newQuantity: number) => {
                         <span class="hidden md:inline">Close Order</span>
                     </Button>
                     
-                    <Button 
-                        v-if="isFutureWeek && draggableWeekmenus.length > 0"
-                        :variant="hasInvitation ? 'default' : 'outline'"
-                        @click="toggleInvitation"
+                    <Button
+                        v-if="draggableWeekmenus.length > 0"
+                        variant="outline"
+                        @click="copyDeepLink"
                         size="sm"
                     >
-                        <Eye v-if="hasInvitation" class="h-4 w-4 md:mr-2" />
-                        <EyeOff v-else class="h-4 w-4 md:mr-2" />
-                        <span class="hidden md:inline">
-                            {{ hasInvitation ? 'Pre-order visible' : 'Show as pre-order' }}
-                        </span>
+                        <Link2 class="h-4 w-4 md:mr-2" />
+                        <span class="hidden md:inline">Copy Link</span>
                     </Button>
                 </div>
             </div>
