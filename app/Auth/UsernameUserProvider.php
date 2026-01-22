@@ -4,9 +4,30 @@ namespace App\Auth;
 
 use Illuminate\Auth\EloquentUserProvider;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Contracts\Auth\Authenticatable;
 
 class UsernameUserProvider extends EloquentUserProvider
 {
+    /**
+     * Retrieve a user by their unique identifier and "remember me" token.
+     */
+    public function retrieveByToken($identifier, $token): ?Authenticatable
+    {
+        Log::info('retrieveByToken called', [
+            'identifier' => $identifier,
+            'token_length' => strlen($token),
+        ]);
+
+        $user = parent::retrieveByToken($identifier, $token);
+
+        Log::info('retrieveByToken result', [
+            'user_found' => $user !== null,
+            'user_id' => $user?->id,
+        ]);
+
+        return $user;
+    }
+
     public function retrieveByCredentials(array $credentials)
     {
         if (empty($credentials) ||

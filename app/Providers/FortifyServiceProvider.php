@@ -62,6 +62,24 @@ class FortifyServiceProvider extends ServiceProvider
         $this->configureActions();
         $this->configureViews();
         $this->configureRateLimiting();
+
+        // Log authentication events for debugging remember me
+        Event::listen(\Illuminate\Auth\Events\Login::class, function ($event) {
+            Log::info('Auth Login Event', [
+                'user_id' => $event->user->id,
+                'username' => $event->user->username,
+                'remember' => $event->remember,
+                'guard' => $event->guard,
+            ]);
+        });
+
+        Event::listen(\Illuminate\Auth\Events\Authenticated::class, function ($event) {
+            Log::debug('Auth Authenticated Event (session restored)', [
+                'user_id' => $event->user->id,
+                'username' => $event->user->username,
+                'guard' => $event->guard,
+            ]);
+        });
     }
 
     /**
@@ -73,11 +91,28 @@ class FortifyServiceProvider extends ServiceProvider
         Fortify::createUsersUsing(CreateNewUser::class);
         
         Fortify::authenticateUsing(function (Request $request) {
+            $rememberValue = $request->input('remember');
+            $rememberBoolean = $request->boolean('remember');
+
+            Log::info('Login attempt', [
+                'email' => $request->email,
+                'remember_raw' => $rememberValue,
+                'remember_boolean' => $rememberBoolean,
+                'all_inputs' => $request->except(['password']),
+            ]);
+
             $user = User::where('username', $request->email)->first();
 
             if ($user && Hash::check($request->password, $user->password)) {
+                Log::info('Login successful', [
+                    'user_id' => $user->id,
+                    'username' => $user->username,
+                    'remember' => $rememberBoolean,
+                ]);
                 return $user;
             }
+
+            Log::warning('Login failed', ['email' => $request->email]);
         });
     }
 

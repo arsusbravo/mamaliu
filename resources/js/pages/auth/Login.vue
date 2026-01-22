@@ -2,24 +2,19 @@
 import InputError from '@/components/InputError.vue';
 import TextLink from '@/components/TextLink.vue';
 import { Button } from '@/components/ui/button';
-import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Spinner } from '@/components/ui/spinner';
 import AuthBase from '@/layouts/AuthLayout.vue';
-import { register } from '@/routes';
 import { store } from '@/routes/login';
 import { request } from '@/routes/password';
 import { Form, Head } from '@inertiajs/vue3';
-import { ref } from 'vue';
 
 defineProps<{
     status?: string;
     canResetPassword: boolean;
     canRegister: boolean;
 }>();
-
-const rememberMe = ref(false);
 </script>
 
 <template class="font-[--font-family-wenkai]">
@@ -82,12 +77,16 @@ const rememberMe = ref(false);
                     <InputError :message="errors.password" />
                 </div>
 
-                <div class="flex items-center justify-between">
-                    <Label for="remember" class="flex items-center space-x-3">
-                        <input type="hidden" name="remember" :value="rememberMe ? '1' : '0'" />
-                        <Checkbox id="remember" v-model:checked="rememberMe" :tabindex="3" />
-                        <span>記住我</span>
-                    </Label>
+                <div class="flex items-center gap-3">
+                    <input
+                        type="checkbox"
+                        id="remember"
+                        name="remember"
+                        value="1"
+                        :tabindex="3"
+                        class="size-4 rounded border-input text-primary focus:ring-primary"
+                    />
+                    <Label for="remember" class="cursor-pointer">記住我</Label>
                 </div>
 
                 <Button
