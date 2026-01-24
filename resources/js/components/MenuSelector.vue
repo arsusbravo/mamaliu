@@ -53,8 +53,6 @@ const toggleDropdown = () => {
 
 <template>
     <div class="grid gap-2">
-        <Label>Menu *</Label>
-        
         <!-- Selected Menu Display -->
         <button
             type="button"

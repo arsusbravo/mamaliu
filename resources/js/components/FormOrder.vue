@@ -1,19 +1,18 @@
 <script setup lang="ts">
-import { ref, watch } from 'vue';
+import { ref, watch, computed } from 'vue';
 import { useForm } from '@inertiajs/vue3';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import ClientSelector from '@/components/ClientSelector.vue';
-import FormWeekmenu from '@/components/FormWeekmenu.vue';
+import MenuSelector from '@/components/MenuSelector.vue';
 
 interface Menu {
     id: number;
     label: string;
     price: number;
-    image_url: string | null; 
+    image_url: string | null;
     has_image: boolean;
 }
 
@@ -55,7 +54,8 @@ const emit = defineEmits(['success', 'cancel']);
 
 const weekmenus = ref<Weekmenu[]>([]);
 const loading = ref(false);
-const showAddWeekmenu = ref(false);
+const menuMode = ref<'week' | 'all'>('week');
+const selectedMenuId = ref<string>('');
 
 const currentDate = new Date();
 const getWeekNumber = (d: Date) => {
@@ -68,7 +68,8 @@ const getWeekNumber = (d: Date) => {
 
 const form = useForm({
     user_id: props.order?.user_id || props.user_id || null,
-    weekmenu_id: props.order?.weekmenu_id || null,
+    weekmenu_id: props.order?.weekmenu_id || null as number | null,
+    menu_id: null as number | null,
     quantity: props.order?.quantity || 1,
     notes: props.order?.notes || '',
     week: props.order?.week || props.week || getWeekNumber(currentDate),
@@ -98,6 +99,18 @@ watch([() => form.week, () => form.year], () => {
     loadWeekmenus();
 });
 
+// Reset selection when switching modes
+watch(menuMode, () => {
+    form.weekmenu_id = null;
+    form.menu_id = null;
+    selectedMenuId.value = '';
+});
+
+// Sync selectedMenuId with form.menu_id
+watch(selectedMenuId, (newVal) => {
+    form.menu_id = newVal ? Number(newVal) : null;
+});
+
 loadWeekmenus();
 
 const handleSubmit = () => {
@@ -118,10 +131,9 @@ const handleSubmit = () => {
     }
 };
 
-const handleWeekmenuAdded = () => {
-    showAddWeekmenu.value = false;
-    loadWeekmenus();
-};
+const menuError = computed(() => {
+    return form.errors.weekmenu_id || form.errors.menu_id;
+});
 </script>
 
 <template>
@@ -162,8 +174,8 @@ const handleWeekmenuAdded = () => {
 
         <div>
             <Label>Client *</Label>
-            <ClientSelector 
-                v-model="form.user_id" 
+            <ClientSelector
+                v-model="form.user_id"
                 :error="form.errors.user_id"
                 :disabled="!!order"
             />
@@ -171,34 +183,64 @@ const handleWeekmenuAdded = () => {
 
         <div>
             <div class="flex items-center justify-between mb-2">
-                <Label for="weekmenu">Menu *</Label>
-                <Button 
-                    type="button" 
-                    variant="link" 
-                    size="sm" 
-                    class="h-auto p-0"
-                    @click="showAddWeekmenu = true"
-                >
-                    + Add Menu to Week
-                </Button>
+                <Label>Menu *</Label>
+                <div class="flex gap-1 text-sm">
+                    <button
+                        type="button"
+                        @click="menuMode = 'week'"
+                        :class="[
+                            'px-2 py-1 rounded transition-colors',
+                            menuMode === 'week'
+                                ? 'bg-primary text-primary-foreground'
+                                : 'bg-muted hover:bg-muted/80'
+                        ]"
+                    >
+                        Week Menus
+                    </button>
+                    <button
+                        type="button"
+                        @click="menuMode = 'all'"
+                        :class="[
+                            'px-2 py-1 rounded transition-colors',
+                            menuMode === 'all'
+                                ? 'bg-primary text-primary-foreground'
+                                : 'bg-muted hover:bg-muted/80'
+                        ]"
+                    >
+                        All Menus
+                    </button>
+                </div>
             </div>
-            
-            <select
-                id="weekmenu"
-                v-model="form.weekmenu_id"
-                class="h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-                :class="{ 'border-red-500': form.errors.weekmenu_id }"
-            >
-                <option :value="null">Select a menu</option>
-                <option v-for="wm in weekmenus" :key="wm.id" :value="wm.id">
-                    {{ wm.menu.label }} (€{{ wm.menu.price.toFixed(2) }})
-                </option>
-            </select>
-            <p v-if="form.errors.weekmenu_id" class="text-sm text-red-500 mt-1">
-                {{ form.errors.weekmenu_id }}
-            </p>
-            <p v-if="!loading && weekmenus.length === 0" class="text-sm text-muted-foreground mt-1">
-                No menus available for this week. Add one using the button above.
+
+            <!-- Week Menus Mode -->
+            <template v-if="menuMode === 'week'">
+                <select
+                    id="weekmenu"
+                    v-model="form.weekmenu_id"
+                    class="h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                    :class="{ 'border-red-500': menuError }"
+                >
+                    <option :value="null">Select a menu</option>
+                    <option v-for="wm in weekmenus" :key="wm.id" :value="wm.id">
+                        {{ wm.menu.label }} (€{{ wm.menu.price.toFixed(2) }})
+                    </option>
+                </select>
+                <p v-if="!loading && weekmenus.length === 0" class="text-sm text-muted-foreground mt-1">
+                    No menus for this week. Switch to "All Menus" to select any menu.
+                </p>
+            </template>
+
+            <!-- All Menus Mode -->
+            <template v-else>
+                <MenuSelector
+                    :menus="menus"
+                    v-model="selectedMenuId"
+                    :error="menuError"
+                />
+            </template>
+
+            <p v-if="menuError" class="text-sm text-red-500 mt-1">
+                {{ menuError }}
             </p>
         </div>
 
@@ -235,24 +277,4 @@ const handleWeekmenuAdded = () => {
             </Button>
         </div>
     </form>
-
-    <!-- Add Weekmenu Dialog -->
-    <Dialog v-model:open="showAddWeekmenu">
-        <DialogContent>
-            <DialogHeader>
-                <DialogTitle>Add Menu to Week {{ form.week }}, {{ form.year }}</DialogTitle>
-                <DialogDescription>Add a menu to this week</DialogDescription>
-            </DialogHeader>
-            <FormWeekmenu 
-                :menus="menus"
-                :groups="groups"
-                :defaultWeek="form.week"
-                :defaultYear="form.year"
-                submitUrl="/admin/weekmenus"
-                method="post"
-                @success="handleWeekmenuAdded"
-                @cancel="showAddWeekmenu = false"
-            />
-        </DialogContent>
-    </Dialog>
 </template>

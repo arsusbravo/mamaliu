@@ -348,16 +348,37 @@ class OrderController extends Controller
     {
         $validated = $request->validate([
             'user_id' => 'required|exists:users,id',
-            'weekmenu_id' => 'required|exists:weekmenu,id',
+            'weekmenu_id' => 'nullable|exists:weekmenu,id',
+            'menu_id' => 'nullable|exists:menu,id',
             'quantity' => 'required|integer|min:1',
             'notes' => 'nullable|string',
             'week' => 'required|integer|min:1|max:53',
             'year' => 'required|integer',
         ]);
 
-        $weekmenu = Weekmenu::findOrFail($validated['weekmenu_id']);
+        // Must have either weekmenu_id or menu_id
+        if (empty($validated['weekmenu_id']) && empty($validated['menu_id'])) {
+            return back()->withErrors(['weekmenu_id' => 'Please select a menu.']);
+        }
+
         $user = User::findOrFail($validated['user_id']);
-        $groupId = $user->group_id ?? $weekmenu->group_id;
+        $groupId = $user->group_id;
+
+        // If menu_id is provided, find or create the weekmenu
+        if (!empty($validated['menu_id'])) {
+            $weekmenu = Weekmenu::firstOrCreate([
+                'menu_id' => $validated['menu_id'],
+                'week' => $validated['week'],
+                'year' => $validated['year'],
+                'group_id' => $groupId,
+            ], [
+                'quantity' => 0,
+            ]);
+            $validated['weekmenu_id'] = $weekmenu->id;
+        } else {
+            $weekmenu = Weekmenu::findOrFail($validated['weekmenu_id']);
+            $groupId = $user->group_id ?? $weekmenu->group_id;
+        }
 
         $existedOrder = Order::where('weekmenu_id', $validated['weekmenu_id'])
             ->where('user_id', $validated['user_id'])
