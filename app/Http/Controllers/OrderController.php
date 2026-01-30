@@ -182,6 +182,11 @@ class OrderController extends Controller
         // Add totals row
         $data->push($columnTotals);
 
+        if (count($data) > 20) {
+            // insert heading also in the end
+            $data->push($headings);
+        }
+
         // Get orders with notes grouped by user
         $ordersWithNotes = $orders->filter(function ($order) {
             return !empty($order->notes);
@@ -251,10 +256,7 @@ class OrderController extends Controller
             }
             
             public function styles(Worksheet $sheet) {
-                $styles = [
-                    1 => ['font' => ['bold' => true]],
-                    $this->totalRowPosition => ['font' => ['bold' => true]],
-                ];
+                $styles = [];
                 
                 if ($this->notesHeaderPosition !== null) {
                     $styles[$this->notesHeaderPosition] = ['font' => ['bold' => true, 'size' => 14]];
