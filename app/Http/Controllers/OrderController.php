@@ -264,28 +264,28 @@ class OrderController extends Controller
                 $totalColumns = count($this->headings);
                 $lastMenuCol = $totalColumns - 2; // last menu column (1-indexed)
                 $lastRow = $this->data->count() + 1; // +1 for header
+                $colLetter = fn($i) => \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($i);
 
                 // Style header row: center + wrapText only on columns B onward (skip A=Name)
                 if ($totalColumns >= 2) {
-                    $lastColLetter = chr(ord('A') + $totalColumns - 1);
-                    $sheet->getStyle("B1:{$lastColLetter}1")->applyFromArray([
+                    $lastCol = $colLetter($totalColumns);
+                    $sheet->getStyle("B1:{$lastCol}1")->applyFromArray([
                         'alignment' => ['horizontal' => 'center', 'wrapText' => true],
                     ]);
                 }
 
                 // Center-align only the menu columns for data rows (skip A=Name and last 2=Total Qty, Total Price)
                 if ($lastMenuCol >= 2) {
-                    $startCol = chr(ord('A') + 1); // B
-                    $endCol = chr(ord('A') + $lastMenuCol - 1);
-                    $sheet->getStyle("{$startCol}2:{$endCol}{$lastRow}")->getAlignment()->setHorizontal('center');
+                    $endCol = $colLetter($lastMenuCol);
+                    $sheet->getStyle("B2:{$endCol}{$lastRow}")->getAlignment()->setHorizontal('center');
                 }
 
                 // Style bottom heading row (same as top header)
                 if ($this->bottomHeadingPosition !== null) {
                     $bottomRow = $this->bottomHeadingPosition + 1; // +1 for header offset
                     if ($totalColumns >= 2) {
-                        $lastColLetter = chr(ord('A') + $totalColumns - 1);
-                        $sheet->getStyle("B{$bottomRow}:{$lastColLetter}{$bottomRow}")->applyFromArray([
+                        $lastCol = $colLetter($totalColumns);
+                        $sheet->getStyle("B{$bottomRow}:{$lastCol}{$bottomRow}")->applyFromArray([
                             'alignment' => ['horizontal' => 'center', 'wrapText' => true],
                         ]);
                     }
