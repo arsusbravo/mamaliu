@@ -213,19 +213,23 @@ class OrderController extends Controller
 
         // Calculate last row positions
         $totalRowPosition = $userOrders->count() + 1; // +1 for header
-        $notesHeaderPosition = $ordersWithNotes->isNotEmpty() ? $totalRowPosition + 4 : null;
+        $bottomHeadingPosition = count($data) > 20 ? $totalRowPosition + 1 : null; // +1 for totals row (in data index, heading is right after totals)
+        $notesOffset = $bottomHeadingPosition ? 1 : 0;
+        $notesHeaderPosition = $ordersWithNotes->isNotEmpty() ? $totalRowPosition + $notesOffset + 4 : null;
 
         // Create export class
-        $export = new class($data, $headings, $totalRowPosition, $notesHeaderPosition) implements FromCollection, WithHeadings, WithStyles, \Maatwebsite\Excel\Concerns\WithColumnWidths {
+        $export = new class($data, $headings, $totalRowPosition, $bottomHeadingPosition, $notesHeaderPosition) implements FromCollection, WithHeadings, WithStyles, \Maatwebsite\Excel\Concerns\WithColumnWidths {
             protected $data;
             protected $headings;
             protected $totalRowPosition;
+            protected $bottomHeadingPosition;
             protected $notesHeaderPosition;
-            
-            public function __construct($data, $headings, $totalRowPosition, $notesHeaderPosition) {
+
+            public function __construct($data, $headings, $totalRowPosition, $bottomHeadingPosition, $notesHeaderPosition) {
                 $this->data = $data;
                 $this->headings = $headings;
                 $this->totalRowPosition = $totalRowPosition;
+                $this->bottomHeadingPosition = $bottomHeadingPosition;
                 $this->notesHeaderPosition = $notesHeaderPosition;
             }
             
@@ -257,12 +261,41 @@ class OrderController extends Controller
             
             public function styles(Worksheet $sheet) {
                 $styles = [];
-                
+                $totalColumns = count($this->headings);
+                $lastMenuCol = $totalColumns - 2; // last menu column (1-indexed)
+                $lastRow = $this->data->count() + 1; // +1 for header
+
+                // Style header row: center + wrapText only on columns B onward (skip A=Name)
+                if ($totalColumns >= 2) {
+                    $lastColLetter = chr(ord('A') + $totalColumns - 1);
+                    $sheet->getStyle("B1:{$lastColLetter}1")->applyFromArray([
+                        'alignment' => ['horizontal' => 'center', 'wrapText' => true],
+                    ]);
+                }
+
+                // Center-align only the menu columns for data rows (skip A=Name and last 2=Total Qty, Total Price)
+                if ($lastMenuCol >= 2) {
+                    $startCol = chr(ord('A') + 1); // B
+                    $endCol = chr(ord('A') + $lastMenuCol - 1);
+                    $sheet->getStyle("{$startCol}2:{$endCol}{$lastRow}")->getAlignment()->setHorizontal('center');
+                }
+
+                // Style bottom heading row (same as top header)
+                if ($this->bottomHeadingPosition !== null) {
+                    $bottomRow = $this->bottomHeadingPosition + 1; // +1 for header offset
+                    if ($totalColumns >= 2) {
+                        $lastColLetter = chr(ord('A') + $totalColumns - 1);
+                        $sheet->getStyle("B{$bottomRow}:{$lastColLetter}{$bottomRow}")->applyFromArray([
+                            'alignment' => ['horizontal' => 'center', 'wrapText' => true],
+                        ]);
+                    }
+                }
+
                 if ($this->notesHeaderPosition !== null) {
                     $styles[$this->notesHeaderPosition] = ['font' => ['bold' => true, 'size' => 14]];
                     $styles[$this->notesHeaderPosition + 1] = ['font' => ['bold' => true]];
                 }
-                
+
                 return $styles;
             }
         };
