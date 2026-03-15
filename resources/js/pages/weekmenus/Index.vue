@@ -548,6 +548,7 @@ const updateQuantity = (weekmenu: Weekmenu, newQuantity: number) => {
                             <TableHead>Menu & Group</TableHead>
                             <TableHead>Price</TableHead>
                             <TableHead>Quantity</TableHead>
+                            <TableHead>Orders</TableHead>
                             <TableHead class="text-right">Actions</TableHead>
                         </TableRow>
                     </TableHeader>
@@ -598,6 +599,7 @@ const updateQuantity = (weekmenu: Weekmenu, newQuantity: number) => {
                                         @input="updateQuantity(weekmenu, weekmenu.quantity)"
                                     />
                                 </td>
+                                <td class="p-4 align-middle">{{ weekmenu.total_ordered || 0 }}</td>
                                 <td class="p-4 align-middle text-right">
                                     <div class="flex justify-end gap-2">
                                         <Button

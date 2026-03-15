@@ -19,6 +19,7 @@ class WeekmenuController extends Controller
         $groupId = $request->get('group_id', null);
 
         $query = Weekmenu::with(['menu', 'group'])
+            ->withSum('orders as total_ordered', 'quantity') // Add this line
             ->byWeek($currentWeek, $currentYear);
 
         // Filter by group if provided
@@ -38,13 +39,13 @@ class WeekmenuController extends Controller
         $menus = Menu::orderBy('label')->get();
         $groups = Group::where('active', true)->orderBy('name')->get();
 
-        return inertia('weekmenus/Index', [
+        return inertia('weekmenus/Index', [ // CORRECT PATH!
             'weekmenus' => $weekmenus,
             'menus' => $menus,
             'groups' => $groups,
             'currentWeek' => (int)$currentWeek,
             'currentYear' => (int)$currentYear,
-            'groupId' => $groupId, // ADD THIS LINE
+            'groupId' => $groupId,
         ]);
     }
 
