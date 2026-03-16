@@ -136,15 +136,27 @@ class WeekmenuController extends Controller
         $validated = $request->validate([
             'week' => 'required|integer|min:1|max:53',
             'year' => 'required|integer|min:2020|max:2100',
+            'group_id' => 'nullable',
         ]);
 
-        Weekmenu::where('week', $validated['week'])
-            ->where('year', $validated['year'])
-            ->update(['quantity' => 0]);
+        $query = Weekmenu::where('week', $validated['week'])
+            ->where('year', $validated['year']);
+
+        // Apply group filter if provided
+        if (isset($validated['group_id'])) {
+            if ($validated['group_id'] === 'none') {
+                $query->whereNull('group_id');
+            } else {
+                $query->where('group_id', $validated['group_id']);
+            }
+        }
+
+        $query->update(['quantity' => 0]);
 
         return redirect()->route('admin.weekmenus_index', [
             'week' => $validated['week'],
             'year' => $validated['year'],
+            'group_id' => $validated['group_id'] ?? null,
         ])->with('success', 'All orders closed for week ' . $validated['week'] . ', ' . $validated['year']);
     }
 

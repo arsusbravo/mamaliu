@@ -256,17 +256,20 @@ const showCloseOrderDialog = ref(false);
 const closeOrderForm = useForm({
     week: props.currentWeek,
     year: props.currentYear,
+    group_id: props.groupId || null,
 });
 
 // Update when week/year changes
-watch([() => props.currentWeek, () => props.currentYear], () => {
+watch([() => props.currentWeek, () => props.currentYear, () => props.groupId], () => {
     closeOrderForm.week = props.currentWeek;
     closeOrderForm.year = props.currentYear;
+    closeOrderForm.group_id = props.groupId || null;
 });
 
 const openCloseOrderDialog = () => {
     closeOrderForm.week = selectedWeek.value;
     closeOrderForm.year = selectedYear.value;
+    closeOrderForm.group_id = selectedGroup.value;
     showCloseOrderDialog.value = true;
 };
 
