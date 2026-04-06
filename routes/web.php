@@ -35,6 +35,7 @@ Route::middleware(['auth', 'usertype:' . UserType::ADMIN])->prefix('admin')->gro
     Route::post('orders', [OrderController::class, 'store'])->name('admin.orders_store');
     Route::post('orders/change-client/{user}', [OrderController::class, 'changeClient'])->name('admin.orders_change_client');
     Route::put('orders/{order}', [OrderController::class, 'update'])->name('admin.orders_update');
+    Route::delete('orders/{order}', [OrderController::class, 'destroy'])->name('admin.orders_destroy');
     Route::get('orders', [OrderController::class, 'index'])->name('admin.orders_index');
     Route::get('orders/export', [OrderController::class, 'export'])->name('admin.orders_export');
     Route::get('orders/pdf', [OrderController::class, 'pdf'])->name('admin.orders_pdf');

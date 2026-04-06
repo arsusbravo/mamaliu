@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import ClientSelector from '@/components/ClientSelector.vue';
 import FormOrder from '@/components/FormOrder.vue';
+import Textarea from './ui/textarea/Textarea.vue';
 
 interface Order {
     user: {
@@ -85,6 +86,7 @@ const selectedOrderId = ref<number | null>(null);
 const editQuantityForm = useForm({
     quantity: 1,
     special_price: '' as string | number,
+    notes: '' as string,
 });
 
 const selectOrderForEdit = (orderId: number) => {
@@ -93,6 +95,7 @@ const selectOrderForEdit = (orderId: number) => {
     if (order) {
         editQuantityForm.quantity = order.quantity;
         editQuantityForm.special_price = order.special_price ?? '';
+        editQuantityForm.notes = order.notes ?? '';
     }
 };
 
@@ -105,6 +108,7 @@ const handleUpdateOrder = () => {
     router.put(`/admin/orders/${selectedOrderId.value}`, {
         quantity: editQuantityForm.quantity,
         special_price: editQuantityForm.special_price || null,
+        notes: editQuantityForm.notes || '',
     }, {
         preserveScroll: true,
         onSuccess: () => {
@@ -235,7 +239,7 @@ const handleOrderAdded = () => {
                                 </div>
                                 <div class="font-semibold">
                                     €{{ ((item.special_price ?? item.weekmenu.menu.price) * item.quantity).toFixed(2) }}
-                                </div>
+                                </div>    
                             </div>
                         </button>
                     </div>
@@ -243,7 +247,7 @@ const handleOrderAdded = () => {
                 
                 <div v-if="selectedOrderId" class="space-y-4 p-4 border rounded-lg bg-gray-50">
                     <div>
-                        <Label for="quantity">Quantity</Label>
+                        <Label for="quantity" class="mb-2">Quantity</Label>
                         <Input
                             id="quantity"
                             v-model.number="editQuantityForm.quantity"
@@ -253,7 +257,7 @@ const handleOrderAdded = () => {
                     </div>
                     
                     <div>
-                        <Label for="special_price">Special Price (optional)</Label>
+                        <Label for="special_price" class="mb-2">Special Price (optional)</Label>
                         <Input
                             id="special_price"
                             v-model="editQuantityForm.special_price"
@@ -261,6 +265,15 @@ const handleOrderAdded = () => {
                             step="0.01"
                             min="0"
                             placeholder="Leave empty for default price"
+                        />
+                    </div>
+                    
+                    <div>
+                        <Label for="notes" class="mb-2">Notes (optional)</Label>
+                        <Textarea
+                            id="notes"
+                            v-model="editQuantityForm.notes"
+                            placeholder="Enter any notes for this order"
                         />
                     </div>
                     

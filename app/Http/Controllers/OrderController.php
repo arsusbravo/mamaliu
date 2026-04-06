@@ -12,7 +12,6 @@ use Carbon\Carbon;
 use Maatwebsite\Excel\Facades\Excel;
 use Maatwebsite\Excel\Concerns\FromCollection;
 use Maatwebsite\Excel\Concerns\WithHeadings;
-use Maatwebsite\Excel\Concerns\WithColumnWidths;
 use Maatwebsite\Excel\Concerns\WithStyles;
 use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 use Mpdf\Mpdf;
@@ -450,6 +449,7 @@ class OrderController extends Controller
         $validated = $request->validate([
             'quantity' => 'required|integer|min:0',
             'special_price' => 'nullable|numeric|min:0',
+            'notes' => 'string|max:255',
         ]);
 
         $orderedQuantity = $order->quantity;
@@ -460,6 +460,7 @@ class OrderController extends Controller
         }
         $order->quantity = $validated['quantity'];
         $order->special_price = $validated['special_price'];
+        $order->notes = $validated['notes'];
         $order->save();
 
         if ($orderedQuantity !== $validated['quantity']) {
@@ -470,6 +471,21 @@ class OrderController extends Controller
             }
         }
 
+        return redirect()->back();
+    }
+
+    public function destroy($id)
+    {
+        $order = Order::findOrFail($id);
+        $weekmenu = Weekmenu::find($order->weekmenu_id);
+        
+        if ($weekmenu) {
+            $weekmenu->quantity += $order->quantity;
+            $weekmenu->save();
+        }
+        
+        $order->delete();
+        
         return redirect()->back();
     }
 
