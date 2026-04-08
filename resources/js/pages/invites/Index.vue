@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
-import { Copy, Check, Plus } from 'lucide-vue-next';
+import { Copy, Check, Plus, Delete, Trash } from 'lucide-vue-next';
 
 interface Token {
     id: number;
@@ -48,6 +48,12 @@ const createInvite = () => {
 const deleteInvite = (tokenId: number) => {
     if (confirm('Are you sure you want to delete this invite?')) {
         router.delete(`/admin/invites/${tokenId}`);
+    }
+};
+
+const deleteAllInvalidInvitations = () => {
+    if (confirm('Are you sure you want to delete all invalid invite links? This action cannot be undone.')) {
+        router.delete('/admin/invites/invalid');
     }
 };
 
@@ -115,10 +121,16 @@ const getStatusText = (token: Token) => {
         <div class="p-6">
             <div class="flex items-center justify-between mb-6">
                 <h1 class="text-2xl font-bold">Invite Links</h1>
-                <Button @click="showCreateDialog = true">
-                    <Plus class="h-4 w-4 mr-2" />
-                    Create Invite
-                </Button>
+                <div>
+                    <Button @click="showCreateDialog = true">
+                        <Plus class="h-4 w-4 mr-2" />
+                        Create Invite
+                    </Button>
+                    <Button @click="deleteAllInvalidInvitations()" variant="destructive" class="ml-2">
+                        <Trash class="h-4 w-4 mr-2" />
+                        Delete invalid invitiation links
+                    </Button>
+                </div>
             </div>
 
             <div class="bg-white rounded-lg shadow overflow-hidden">
@@ -136,6 +148,16 @@ const getStatusText = (token: Token) => {
                         <tr v-for="token in tokens" :key="token.id">
                             <td class="px-6 py-4 whitespace-nowrap text-xs font-mono">
                                 {{ token.token.substring(0, 16) }}...
+                                    <Button
+                                        v-if="token.is_valid"
+                                        size="sm"
+                                        variant="outline"
+                                        @click="copyToClipboard(token.invite_url, token.id)"
+                                        title="Copy registration link"
+                                    >
+                                        <Check v-if="copiedToken === token.id" class="h-4 w-4" />
+                                        <Copy v-else class="h-4 w-4" />
+                                    </Button>
                             </td>
                             <td class="px-6 py-4 whitespace-nowrap">
                                 <span 

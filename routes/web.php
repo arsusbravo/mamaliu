@@ -66,6 +66,7 @@ Route::middleware(['auth', 'usertype:' . UserType::ADMIN])->prefix('admin')->gro
     
     Route::get('invites', [InviteController::class, 'index'])->name('admin.invites_index');
     Route::post('invites', [InviteController::class, 'store'])->name('admin.invites_store');
+    Route::delete('invites/invalid', [InviteController::class, 'destroyInvalid'])->name('admin.invites_destroy_invalid');
     Route::delete('invites/{token}', [InviteController::class, 'destroy'])->name('admin.invites_destroy');
 
     Route::post('groups', [GroupController::class, 'store'])->name('admin.groups_store');

@@ -42,4 +42,17 @@ class InviteController extends Controller
         $token->delete();
         return back()->with('success', 'Invite link deleted successfully!');
     }
+
+    public function destroyInvalid()
+    {
+        $threeDaysAgo = now()->subDays(3);
+
+        $deletedCount = RegistrationToken::where('valid_at', '<', $threeDaysAgo)->delete();
+
+        if ($deletedCount === 0) {
+            return back()->with('info', 'No invalid invite links found.');
+        }
+
+        return back()->with('success', "Deleted {$deletedCount} expired link(s).");
+    }
 }
