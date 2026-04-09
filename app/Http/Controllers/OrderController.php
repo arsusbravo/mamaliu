@@ -449,7 +449,7 @@ class OrderController extends Controller
         $validated = $request->validate([
             'quantity' => 'required|integer|min:0',
             'special_price' => 'nullable|numeric|min:0',
-            'notes' => 'string|max:255',
+            'notes' => 'nullable|string|max:255',
         ]);
 
         $orderedQuantity = $order->quantity;
@@ -460,7 +460,7 @@ class OrderController extends Controller
         }
         $order->quantity = $validated['quantity'];
         $order->special_price = $validated['special_price'];
-        $order->notes = $validated['notes'];
+        $order->notes = $validated['notes'] ?? '';
         $order->save();
 
         if ($orderedQuantity !== $validated['quantity']) {
