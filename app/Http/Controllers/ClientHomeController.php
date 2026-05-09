@@ -7,6 +7,7 @@ use Carbon\Carbon;
 use Illuminate\Http\Request;
 use App\Models\Order;
 use App\Mail\OrderConfirmation;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Log;
 
@@ -114,63 +115,60 @@ class ClientHomeController extends Controller
         $user = $request->user();
         $createdOrders = [];
 
-        foreach ($validated['orders'] as $orderData) {
-            $weekmenu = Weekmenu::findOrFail($orderData['weekmenu_id']);
-            
-            // Validate quantity doesn't exceed weekmenu quantity
-            if ($orderData['quantity'] > $weekmenu->quantity) {
-                $orderData['quantity'] = $weekmenu->quantity;
-            }
+        DB::transaction(function () use ($validated, $user, &$createdOrders) {
+            foreach ($validated['orders'] as $orderData) {
+                // Lock the row so concurrent requests cannot both see the same quantity
+                $weekmenu = Weekmenu::lockForUpdate()->findOrFail($orderData['weekmenu_id']);
 
-            // Check if order exists
-            $existingOrder = \App\Models\Order::where('user_id', $user->id)
-                ->where('weekmenu_id', $weekmenu->id)
-                ->where('week', $weekmenu->week)
-                ->where('year', $weekmenu->year)
-                ->first();
-
-            if ($existingOrder) {
-                // Update existing order
-                $existingOrder->quantity += $orderData['quantity'];
-                if (!empty($orderData['notes'])) {
-                    $existingOrder->notes = $orderData['notes'];
+                if ($weekmenu->quantity <= 0) {
+                    continue;
                 }
-                $existingOrder->save();
-                $createdOrders[] = $existingOrder;
-            } else {
-                // Create new order
-                $order = Order::create([
-                    'user_id' => $user->id,
-                    'weekmenu_id' => $weekmenu->id,
-                    'group_id' => $user->group_id ?? $weekmenu->group_id,
-                    'quantity' => $orderData['quantity'],
-                    'notes' => $orderData['notes'] ?? null,
-                    'week' => $weekmenu->week,
-                    'year' => $weekmenu->year,
-                ]);
-                $createdOrders[] = $order;
+
+                // Cap at whatever is still available
+                $addedQty = min($orderData['quantity'], $weekmenu->quantity);
+
+                $existingOrder = Order::where('user_id', $user->id)
+                    ->where('weekmenu_id', $weekmenu->id)
+                    ->where('week', $weekmenu->week)
+                    ->where('year', $weekmenu->year)
+                    ->first();
+
+                if ($existingOrder) {
+                    $existingOrder->quantity += $addedQty;
+                    if (!empty($orderData['notes'])) {
+                        $existingOrder->notes = $orderData['notes'];
+                    }
+                    $existingOrder->save();
+                    $createdOrders[] = $existingOrder;
+                } else {
+                    $createdOrders[] = Order::create([
+                        'user_id' => $user->id,
+                        'weekmenu_id' => $weekmenu->id,
+                        'group_id' => $user->group_id ?? $weekmenu->group_id,
+                        'quantity' => $addedQty,
+                        'notes' => $orderData['notes'] ?? null,
+                        'week' => $weekmenu->week,
+                        'year' => $weekmenu->year,
+                    ]);
+                }
+
+                // Subtract only the newly added quantity, not the running order total
+                $weekmenu->decrement('quantity', $addedQty);
             }
+        });
+
+        if (empty($createdOrders)) {
+            return back()->with('error', 'None of the selected items were available.');
         }
 
         $firstOrder = $createdOrders[0];
-        
-        // GET ALL ORDERS FOR THIS WEEK/YEAR FOR THIS USER
+
         $allOrdersForWeek = Order::with(['weekmenu.menu', 'weekmenu.group'])
             ->where('user_id', $user->id)
             ->where('week', $firstOrder->week)
             ->where('year', $firstOrder->year)
             ->get();
 
-        // Substract ordered quantities from weekmenus
-        foreach ($createdOrders as $order) {
-            $weekmenu = Weekmenu::find($order->weekmenu_id);
-            if ($weekmenu) {
-                $weekmenu->quantity -= $order->quantity;
-                $weekmenu->save();
-            }
-        }
-        
-        // Send order confirmation email with ALL orders for the week
         try {
             Mail::to($user->email)->send(
                 new OrderConfirmation($user, $allOrdersForWeek, $firstOrder->week, $firstOrder->year)
@@ -178,7 +176,7 @@ class ClientHomeController extends Controller
         } catch (\Exception $e) {
             Log::error('Failed to send order confirmation email: ' . $e->getMessage());
         }
-        
+
         return redirect('/orders')->with([
             'success' => true,
             'orderWeek' => $firstOrder->week,

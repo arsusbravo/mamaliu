@@ -414,6 +414,12 @@ class OrderController extends Controller
             $groupId = $user->group_id ?? $weekmenu->group_id;
         }
 
+        // Guard: reject if weekmenu cannot cover the requested quantity.
+        // Skip for weekmenus that were just created via menu_id (quantity starts at 0).
+        if (!$weekmenu->wasRecentlyCreated && $weekmenu->quantity < $validated['quantity']) {
+            return back()->withErrors(['quantity' => 'Only ' . $weekmenu->quantity . ' spots remaining for this menu.']);
+        }
+
         $existedOrder = Order::where('weekmenu_id', $validated['weekmenu_id'])
             ->where('user_id', $validated['user_id'])
             ->where('week', $validated['week'])
@@ -439,6 +445,8 @@ class OrderController extends Controller
             $existedOrder->save();
         }
 
+        $weekmenu->decrement('quantity', $validated['quantity']);
+
         return redirect()->back();
     }
 
@@ -455,21 +463,31 @@ class OrderController extends Controller
         $orderedQuantity = $order->quantity;
 
         if ($validated['quantity'] == 0) {
+            $weekmenuId = $order->weekmenu_id;
             $order->delete();
+            $weekmenu = Weekmenu::find($weekmenuId);
+            if ($weekmenu) {
+                $weekmenu->increment('quantity', $orderedQuantity);
+            }
             return redirect()->back();
         }
+
+        if ($validated['quantity'] !== $orderedQuantity) {
+            $weekmenu = Weekmenu::find($order->weekmenu_id);
+            if ($weekmenu) {
+                $available = $weekmenu->quantity + $orderedQuantity;
+                if ($validated['quantity'] > $available) {
+                    return back()->withErrors(['quantity' => 'Only ' . $available . ' spots available for this menu.']);
+                }
+                $weekmenu->quantity = $available - $validated['quantity'];
+                $weekmenu->save();
+            }
+        }
+
         $order->quantity = $validated['quantity'];
         $order->special_price = $validated['special_price'];
         $order->notes = $validated['notes'] ?? '';
         $order->save();
-
-        if ($orderedQuantity !== $validated['quantity']) {
-            $weekmenu = Weekmenu::find($order->weekmenu_id);
-            if ($weekmenu) {
-                $weekmenu->quantity += ($orderedQuantity - $validated['quantity']);
-                $weekmenu->save(); 
-            }
-        }
 
         return redirect()->back();
     }
