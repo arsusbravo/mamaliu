@@ -30,9 +30,13 @@ class InviteController extends Controller
     {
         $validated = $request->validate([
             'valid_at' => 'nullable|date',
+            'valid_for_days' => 'nullable|integer|min:1',
         ]);
 
-        $token = RegistrationToken::generate($validated['valid_at'] ?? now());
+        $token = RegistrationToken::generate(
+            $validated['valid_at'] ?? now(),
+            $validated['valid_for_days'] ?? null,
+        );
 
         return back()->with('success', 'Invite link created successfully!');
     }
@@ -45,9 +49,9 @@ class InviteController extends Controller
 
     public function destroyInvalid()
     {
-        $threeDaysAgo = now()->subDays(3);
-
-        $deletedCount = RegistrationToken::where('valid_at', '<', $threeDaysAgo)->delete();
+        $deletedCount = RegistrationToken::whereRaw(
+            'valid_at < DATE_SUB(NOW(), INTERVAL COALESCE(valid_for_days, 3) DAY)'
+        )->delete();
 
         if ($deletedCount === 0) {
             return back()->with('info', 'No invalid invite links found.');

@@ -32,15 +32,18 @@ const breadcrumbs: BreadcrumbItem[] = [
 
 const showCreateDialog = ref(false);
 const validAt = ref(new Date().toISOString().split('T')[0]);
+const validForDays = ref(3);
 const copiedToken = ref<number | null>(null);
 
 const createInvite = () => {
     router.post('/admin/invites', {
         valid_at: validAt.value,
+        valid_for_days: validForDays.value,
     }, {
         onSuccess: () => {
             showCreateDialog.value = false;
             validAt.value = new Date().toISOString().split('T')[0];
+            validForDays.value = 3;
         },
     });
 };
@@ -205,7 +208,7 @@ const getStatusText = (token: Token) => {
                 <DialogHeader>
                     <DialogTitle>Create Invite Link</DialogTitle>
                     <DialogDescription>
-                        Generate a new registration invite link. Token will be valid for 3 days.
+                        Generate a new registration invite link.
                     </DialogDescription>
                 </DialogHeader>
                 <div class="space-y-4">
@@ -216,7 +219,16 @@ const getStatusText = (token: Token) => {
                             v-model="validAt"
                             type="date"
                         />
-                        <p class="text-xs text-gray-500 mt-1">Token will be valid for 3 days from this date</p>
+                    </div>
+                    <div>
+                        <Label for="valid_for_days">Valid For (days)</Label>
+                        <Input
+                            id="valid_for_days"
+                            v-model.number="validForDays"
+                            type="number"
+                            min="1"
+                        />
+                        <p class="text-xs text-gray-500 mt-1">Token expires {{ validForDays }} day{{ validForDays === 1 ? '' : 's' }} after the valid-from date</p>
                     </div>
                     <Button @click="createInvite" class="w-full">Create Invite</Button>
                 </div>
