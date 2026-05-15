@@ -70,7 +70,7 @@ const form = useForm({
     year: props.weekmenu?.year || props.defaultYear || props.currentYear || new Date().getFullYear(),
     group_id: props.weekmenu?.group_id ? String(props.weekmenu.group_id) : 'none',
     menu_id: props.weekmenu?.menu_id ? String(props.weekmenu.menu_id) : '',
-    quantity: props.weekmenu?.quantity || 1,
+    quantity: props.weekmenu?.quantity ?? 1,
 });
 
 const submit = () => {
@@ -167,7 +167,7 @@ const submit = () => {
                     id="quantity"
                     v-model.number="form.quantity"
                     type="number"
-                    min="1"
+                    min="0"
                     required
                     :class="{ 'border-red-500': form.errors.quantity }"
                 />

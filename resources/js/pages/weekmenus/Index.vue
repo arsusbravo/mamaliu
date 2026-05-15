@@ -341,7 +341,7 @@ const updatingQuantity = ref<number | null>(null);
 let quantityTimeout: ReturnType<typeof setTimeout>;
 
 const updateQuantity = (weekmenu: Weekmenu, newQuantity: number) => {
-    if (newQuantity < 1) return;
+    if (newQuantity == null || isNaN(newQuantity) || newQuantity < 0) return;
     
     clearTimeout(quantityTimeout);
     quantityTimeout = setTimeout(async () => {
