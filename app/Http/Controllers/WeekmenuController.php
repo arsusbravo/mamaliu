@@ -56,7 +56,7 @@ class WeekmenuController extends Controller
             'year' => 'required|integer|min:2020|max:2100',
             'group_id' => 'nullable|exists:groups,id',
             'menu_id' => 'required|exists:menu,id',
-            'quantity' => 'required|integer|min:1',
+            'quantity' => 'required|integer|min:0',
         ]);
 
         $maxOrdering = Weekmenu::where('week', $validated['week'])
@@ -80,7 +80,7 @@ class WeekmenuController extends Controller
             'year' => 'required|integer|min:2020|max:2100',
             'group_id' => 'nullable|exists:groups,id',
             'menu_id' => 'required|exists:menu,id',
-            'quantity' => 'required|integer|min:1',
+            'quantity' => 'required|integer|min:0',
         ]);
 
         $weekmenu->update($validated);
@@ -123,7 +123,7 @@ class WeekmenuController extends Controller
     public function updateQuantity(Request $request, Weekmenu $weekmenu)
     {
         $validated = $request->validate([
-            'quantity' => 'required|integer|min:1',
+            'quantity' => 'required|integer|min:0',
         ]);
 
         $weekmenu->update(['quantity' => $validated['quantity']]);

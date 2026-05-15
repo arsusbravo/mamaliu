@@ -596,7 +596,7 @@ const updateQuantity = (weekmenu: Weekmenu, newQuantity: number) => {
                                     <Input
                                         v-model.number="weekmenu.quantity"
                                         type="number"
-                                        min="1"
+                                        min="0"
                                         class="w-20"
                                         :class="{ 'opacity-50': updatingQuantity === weekmenu.id }"
                                         @input="updateQuantity(weekmenu, weekmenu.quantity)"
