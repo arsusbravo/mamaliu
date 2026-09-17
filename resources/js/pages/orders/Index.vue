@@ -44,12 +44,18 @@ interface Group {
     name: string;
 }
 
+interface PickupPoint {
+    id: number;
+    name: string;
+}
+
 interface Order {
     id: number;
     quantity: number;
     special_price: number | null;
     notes: string | null;
     weekmenu: Weekmenu;
+    pickup_point: PickupPoint | null;
     week: number;
     year: number;
 }
@@ -450,6 +456,10 @@ const handleInvoiceSuccess = () => {
                                         <div class="flex items-center gap-1">
                                             <span class="inline-block w-2 h-2 bg-orange-400 rounded-full"></span>
                                             <span>{{ groupedOrder.group?.name ?? 'No Group' }}</span>
+                                            <template v-if="groupedOrder.orders[0]?.pickup_point">
+                                                <span class="text-muted-foreground">—</span>
+                                                <span class="font-medium">{{ groupedOrder.orders[0].pickup_point.name }}</span>
+                                            </template>
                                         </div>
                                         <div class="text-xs">{{ formatDate(groupedOrder.order_date) }}</div>
                                     </div>

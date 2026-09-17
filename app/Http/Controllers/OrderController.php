@@ -25,7 +25,7 @@ class OrderController extends Controller
         $currentYear = $request->get('year', Carbon::now()->year);
 
         // Get orders with relationships
-        $query = Order::with(['weekmenu.menu', 'user.group'])
+        $query = Order::with(['weekmenu.menu', 'user.group', 'pickupPoint'])
             ->byWeek($currentWeek, $currentYear);
 
         // Filter by client's group
@@ -90,11 +90,9 @@ class OrderController extends Controller
         $currentWeek = $request->get('week', Carbon::now()->week);
         $currentYear = $request->get('year', Carbon::now()->year);
 
-        // Get orders with filters
-        $query = Order::with(['weekmenu.menu', 'user.group'])
+        $query = Order::with(['weekmenu.menu', 'user.group', 'pickupPoint'])
             ->byWeek($currentWeek, $currentYear);
 
-        // Filter by client's group
         if ($request->filled('group_id')) {
             $query->whereHas('user', function ($q) use ($request) {
                 $q->where('group_id', $request->group_id);
@@ -114,135 +112,128 @@ class OrderController extends Controller
 
         $orders = $query->get();
 
-        // Get all unique menus for this week
         $menus = $orders->pluck('weekmenu.menu')->unique('id')->sortBy('label')->values();
 
-        // Group orders by user
-        $userOrders = $orders->groupBy('user_id')->map(function ($userOrders) use ($menus) {
-            $user = $userOrders->first()->user;
-            $row = ['name' => $user->name];
-            
-            $totalQuantity = 0;
-            $totalPrice = 0;
-            
-            // For each menu, get quantity and calculate price
-            foreach ($menus as $menu) {
-                $order = $userOrders->firstWhere('weekmenu.menu.id', $menu->id);
-                $quantity = $order ? $order->quantity : 0;
-                $row['menu_' . $menu->id] = $quantity;
-                $totalQuantity += $quantity;
-                
-                if ($order) {
-                    $price = $order->special_price ?? $order->weekmenu->menu->price;
-                    $totalPrice += $quantity * $price;
-                }
-            }
-            
-            $row['total_quantity'] = $totalQuantity;
-            $row['total_price'] = $totalPrice;
-            
-            return $row;
-        })->values();
-
-        // Calculate column totals
-        $columnTotals = ['TOTAL'];
-        $grandTotalQuantity = 0;
-        $grandTotalPrice = 0;
-        
-        foreach ($menus as $menu) {
-            $columnTotal = $userOrders->sum('menu_' . $menu->id);
-            $columnTotals[] = $columnTotal;
-            $grandTotalQuantity += $columnTotal;
-        }
-        
-        $columnTotals[] = $grandTotalQuantity;
-        $grandTotalPrice = $userOrders->sum('total_price');
-        $columnTotals[] = $grandTotalPrice;
-
-        // Prepare headings
         $headings = ['Name'];
         foreach ($menus as $menu) {
             $headings[] = $menu->label;
         }
         $headings[] = 'Total Qty';
         $headings[] = 'Total Price';
+        $numColumns = count($headings);
 
-        // Prepare data rows
-        $data = $userOrders->map(function ($row) use ($menus) {
-            $rowData = [$row['name']];
-            foreach ($menus as $menu) {
-                $rowData[] = $row['menu_' . $menu->id];
+        // Group orders by pickup point (sorted by name, null/unknown last)
+        $byPickupPoint = $orders->groupBy(fn ($o) => $o->pickup_point_id ?? 0)
+            ->sortBy(fn ($group) => optional($group->first()->pickupPoint)->name ?? 'zzz');
+
+        $data = collect();
+        $sectionHeaderRows = [];
+        $totalRows = [];
+        $currentRow = 2; // row 1 = headings (WithHeadings)
+
+        foreach ($byPickupPoint as $pickupOrders) {
+            $sectionLabel = optional($pickupOrders->first()->pickupPoint)->name ?? 'No pick-up point';
+
+            // Section header
+            $sectionRow = array_fill(0, $numColumns, '');
+            $sectionRow[0] = $sectionLabel;
+            $data->push($sectionRow);
+            $sectionHeaderRows[] = $currentRow++;
+
+            // Per-user rows for this pick-up point
+            $userRows = $pickupOrders->groupBy('user_id')->map(function ($userOrderGroup) use ($menus) {
+                $user = $userOrderGroup->first()->user;
+                $row = ['name' => $user->name];
+                $totalQuantity = 0;
+                $totalPrice = 0;
+
+                foreach ($menus as $menu) {
+                    $order = $userOrderGroup->firstWhere('weekmenu.menu.id', $menu->id);
+                    $quantity = $order ? $order->quantity : 0;
+                    $row['menu_' . $menu->id] = $quantity;
+                    $totalQuantity += $quantity;
+                    if ($order) {
+                        $price = $order->special_price ?? $order->weekmenu->menu->price;
+                        $totalPrice += $quantity * $price;
+                    }
+                }
+
+                $row['total_quantity'] = $totalQuantity;
+                $row['total_price'] = $totalPrice;
+                return $row;
+            })->values();
+
+            foreach ($userRows as $row) {
+                $rowData = [$row['name']];
+                foreach ($menus as $menu) {
+                    $rowData[] = $row['menu_' . $menu->id];
+                }
+                $rowData[] = $row['total_quantity'];
+                $rowData[] = $row['total_price'];
+                $data->push($rowData);
+                $currentRow++;
             }
-            $rowData[] = $row['total_quantity'];
-            $rowData[] = $row['total_price'];
-            return $rowData;
-        });
 
-        // Add totals row
-        $data->push($columnTotals);
+            // Section total
+            $sectionTotals = ['TOTAL'];
+            foreach ($menus as $menu) {
+                $sectionTotals[] = $userRows->sum('menu_' . $menu->id);
+            }
+            $sectionTotals[] = $userRows->sum('total_quantity');
+            $sectionTotals[] = $userRows->sum('total_price');
+            $data->push($sectionTotals);
+            $totalRows[] = $currentRow++;
 
-        if (count($data) > 20) {
-            // insert heading also in the end
-            $data->push($headings);
+            // Blank separator
+            $data->push(array_fill(0, $numColumns, ''));
+            $currentRow++;
         }
 
-        // Get orders with notes grouped by user
-        $ordersWithNotes = $orders->filter(function ($order) {
-            return !empty($order->notes);
-        })->groupBy('user_id');
+        // Notes section
+        $ordersWithNotes = $orders->filter(fn ($o) => !empty($o->notes))->groupBy('user_id');
+        $notesHeaderRow = null;
 
-        // Add notes section if there are any notes
         if ($ordersWithNotes->isNotEmpty()) {
-            // Add spacing before notes section
-            $numColumns = count($headings);
             $data->push(array_fill(0, $numColumns, ''));
-            $data->push(array_fill(0, $numColumns, ''));
-            
-            // Add notes header
+            $currentRow++;
             $data->push(['NOTES']);
+            $notesHeaderRow = $currentRow++;
             $data->push(['Client Name', 'Notes']);
-            
-            // Add notes rows
+            $currentRow++;
+
             foreach ($ordersWithNotes as $userNotes) {
                 $user = $userNotes->first()->user;
                 $allNotes = $userNotes->pluck('notes')->filter()->unique()->implode('; ');
                 $data->push([$user->name, $allNotes]);
+                $currentRow++;
             }
         }
 
-        // Calculate last row positions
-        $totalRowPosition = $userOrders->count() + 1; // +1 for header
-        $bottomHeadingPosition = count($data) > 20 ? $totalRowPosition + 1 : null; // +1 for totals row (in data index, heading is right after totals)
-        $notesOffset = $bottomHeadingPosition ? 1 : 0;
-        $notesHeaderPosition = $ordersWithNotes->isNotEmpty() ? $totalRowPosition + $notesOffset + 4 : null;
-
-        // Create export class
-        $export = new class($data, $headings, $totalRowPosition, $bottomHeadingPosition, $notesHeaderPosition) implements FromCollection, WithHeadings, WithStyles, \Maatwebsite\Excel\Concerns\WithColumnWidths {
+        $export = new class($data, $headings, $sectionHeaderRows, $totalRows, $notesHeaderRow) implements FromCollection, WithHeadings, WithStyles, \Maatwebsite\Excel\Concerns\WithColumnWidths {
             protected $data;
             protected $headings;
-            protected $totalRowPosition;
-            protected $bottomHeadingPosition;
-            protected $notesHeaderPosition;
+            protected $sectionHeaderRows;
+            protected $totalRows;
+            protected $notesHeaderRow;
 
-            public function __construct($data, $headings, $totalRowPosition, $bottomHeadingPosition, $notesHeaderPosition) {
+            public function __construct($data, $headings, $sectionHeaderRows, $totalRows, $notesHeaderRow) {
                 $this->data = $data;
                 $this->headings = $headings;
-                $this->totalRowPosition = $totalRowPosition;
-                $this->bottomHeadingPosition = $bottomHeadingPosition;
-                $this->notesHeaderPosition = $notesHeaderPosition;
+                $this->sectionHeaderRows = $sectionHeaderRows;
+                $this->totalRows = $totalRows;
+                $this->notesHeaderRow = $notesHeaderRow;
             }
-            
+
             public function collection() {
                 return $this->data;
             }
-            
+
             public function headings(): array {
                 return $this->headings;
             }
-            
+
             public function columnWidths(): array
             {
-                // Find the longest name
                 $maxLength = 15;
                 foreach ($this->data as $row) {
                     if (isset($row[0]) && is_string($row[0])) {
@@ -252,47 +243,44 @@ class OrderController extends Controller
                         }
                     }
                 }
-                
-                return [
-                    'A' => $maxLength + 3,
-                ];
+                return ['A' => $maxLength + 3];
             }
-            
+
             public function styles(Worksheet $sheet) {
                 $styles = [];
                 $totalColumns = count($this->headings);
-                $lastMenuCol = $totalColumns - 2; // last menu column (1-indexed)
-                $lastRow = $this->data->count() + 1; // +1 for header
                 $colLetter = fn($i) => \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($i);
+                $lastCol = $colLetter($totalColumns);
 
-                // Style header row: center + wrapText only on columns B onward (skip A=Name)
+                // Header row: center + wrapText on B onwards
                 if ($totalColumns >= 2) {
-                    $lastCol = $colLetter($totalColumns);
                     $sheet->getStyle("B1:{$lastCol}1")->applyFromArray([
                         'alignment' => ['horizontal' => 'center', 'wrapText' => true],
                     ]);
                 }
 
-                // Center-align only the menu columns for data rows (skip A=Name and last 2=Total Qty, Total Price)
-                if ($lastMenuCol >= 2) {
-                    $endCol = $colLetter($lastMenuCol);
-                    $sheet->getStyle("B2:{$endCol}{$lastRow}")->getAlignment()->setHorizontal('center');
+                // Section header rows: bold + light yellow background
+                foreach ($this->sectionHeaderRows as $row) {
+                    $sheet->getStyle("A{$row}:{$lastCol}{$row}")->applyFromArray([
+                        'font' => ['bold' => true, 'size' => 12],
+                        'fill' => [
+                            'fillType' => \PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID,
+                            'startColor' => ['rgb' => 'FFF3CD'],
+                        ],
+                    ]);
                 }
 
-                // Style bottom heading row (same as top header)
-                if ($this->bottomHeadingPosition !== null) {
-                    $bottomRow = $this->bottomHeadingPosition + 1; // +1 for header offset
-                    if ($totalColumns >= 2) {
-                        $lastCol = $colLetter($totalColumns);
-                        $sheet->getStyle("B{$bottomRow}:{$lastCol}{$bottomRow}")->applyFromArray([
-                            'alignment' => ['horizontal' => 'center', 'wrapText' => true],
-                        ]);
-                    }
+                // Total rows: bold
+                foreach ($this->totalRows as $row) {
+                    $sheet->getStyle("A{$row}:{$lastCol}{$row}")->applyFromArray([
+                        'font' => ['bold' => true],
+                    ]);
                 }
 
-                if ($this->notesHeaderPosition !== null) {
-                    $styles[$this->notesHeaderPosition] = ['font' => ['bold' => true, 'size' => 14]];
-                    $styles[$this->notesHeaderPosition + 1] = ['font' => ['bold' => true]];
+                // Notes header
+                if ($this->notesHeaderRow !== null) {
+                    $styles[$this->notesHeaderRow] = ['font' => ['bold' => true, 'size' => 14]];
+                    $styles[$this->notesHeaderRow + 1] = ['font' => ['bold' => true]];
                 }
 
                 return $styles;

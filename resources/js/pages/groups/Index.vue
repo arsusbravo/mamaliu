@@ -28,11 +28,17 @@ import { usePage } from '@inertiajs/vue3';
 import { useForm } from '@inertiajs/vue3';
 import { Search } from 'lucide-vue-next';
 
+interface PickupPoint {
+    id: number;
+    name: string;
+}
+
 interface Group {
     id: number;
     name: string | null;
     slug: string | null;
     active: boolean;
+    pickup_points: PickupPoint[];
 }
 
 interface PaginationLink {
@@ -106,6 +112,7 @@ const emptyGroup: Group = {
     name: null,
     slug: null,
     active: true,
+    pickup_points: [],
 };
 
 const deleteForm = useForm({});
@@ -254,19 +261,26 @@ watch(() => page.props.flash, (flash: any) => {
                                 Name
                             </TableHeadSortable>
                             <TableHead>Slug</TableHead>
+                            <TableHead>Pick-up Points</TableHead>
                             <TableHead>Status</TableHead>
                             <TableHead class="text-right">Actions</TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
                         <TableRow v-if="groups.data.length === 0">
-                            <TableCell colspan="4" class="text-center text-muted-foreground">
+                            <TableCell colspan="5" class="text-center text-muted-foreground">
                                 No groups found. Add your first group to get started.
                             </TableCell>
                         </TableRow>
                         <TableRow v-for="group in groups.data" :key="group.id">
                             <TableCell class="font-medium">{{ group.name ?? '-' }}</TableCell>
                             <TableCell class="font-mono text-sm">{{ group.slug ?? '-' }}</TableCell>
+                            <TableCell class="text-sm text-muted-foreground">
+                                <span v-if="group.pickup_points?.length">
+                                    {{ group.pickup_points.map(p => p.name).join(', ') }}
+                                </span>
+                                <span v-else class="italic">—</span>
+                            </TableCell>
                             <TableCell>
                                 <span 
                                     :class="[

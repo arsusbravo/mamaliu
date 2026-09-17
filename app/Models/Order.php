@@ -13,6 +13,7 @@ class Order extends Model
         'weekmenu_id',
         'user_id',
         'group_id',
+        'pickup_point_id',
         'quantity',
         'special_price',
         'week',
@@ -40,6 +41,11 @@ class Order extends Model
     public function group()
     {
         return $this->belongsTo(Group::class);
+    }
+
+    public function pickupPoint()
+    {
+        return $this->belongsTo(PickupPoint::class);
     }
 
     public function invoiceItems()

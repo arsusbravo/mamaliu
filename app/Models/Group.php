@@ -34,6 +34,11 @@ class Group extends Model
         return $this->hasMany(Order::class);
     }
 
+    public function pickupPoints()
+    {
+        return $this->hasMany(PickupPoint::class);
+    }
+
     public function scopeActive($query)
     {
         return $query->where('active', 1);

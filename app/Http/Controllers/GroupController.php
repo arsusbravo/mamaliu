@@ -25,7 +25,7 @@ class GroupController extends Controller
         $sortDirection = $request->get('direction', 'desc');
         $query->orderBy($sortField, $sortDirection);
 
-        $groups = $query->paginate(10)->withQueryString();
+        $groups = $query->with('pickupPoints')->paginate(10)->withQueryString();
 
         return inertia('groups/Index', [
             'groups' => $groups,

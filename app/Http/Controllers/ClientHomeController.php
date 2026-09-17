@@ -25,7 +25,7 @@ class ClientHomeController extends Controller
         $isPreOrder = ($currentYear > $nowYear) || ($currentYear == $nowYear && $currentWeek > $nowWeek);
 
         // Try to get weekmenus for requested week
-        $query = Weekmenu::with(['menu', 'group'])
+        $query = Weekmenu::with(['menu', 'group.pickupPoints'])
             ->where('week', $currentWeek)
             ->where('year', $currentYear)
             ->where('quantity', '>', 0);
@@ -41,7 +41,7 @@ class ClientHomeController extends Controller
         $weekmenus = $query->orderBy('ordering')->get();
 
         // Check for future weekmenus
-        $futureQuery = Weekmenu::with(['menu', 'group'])
+        $futureQuery = Weekmenu::with(['menu', 'group.pickupPoints'])
             ->where(function ($q) use ($currentWeek, $currentYear) {
                 $q->where('year', '>', $currentYear)
                   ->orWhere(function ($q2) use ($currentWeek, $currentYear) {
@@ -91,6 +91,10 @@ class ClientHomeController extends Controller
                     'group' => $wm->group ? [
                         'id' => $wm->group->id,
                         'name' => $wm->group->name,
+                        'pickup_points' => $wm->group->pickupPoints->map(fn ($p) => [
+                            'id' => $p->id,
+                            'name' => $p->name,
+                        ])->values(),
                     ] : null,
                 ];
             }),
@@ -100,12 +104,16 @@ class ClientHomeController extends Controller
             'welcome' => $request->has('welcome'),
             'futureWeeks' => $futureWeeks,
             'isPreOrder' => $isPreOrder,
+            'userPickupPoints' => $user->group
+                ? $user->group->load('pickupPoints')->pickupPoints->map(fn ($p) => ['id' => $p->id, 'name' => $p->name])->values()
+                : [],
         ]);
     }
 
     public function placeOrder(Request $request)
     {
         $validated = $request->validate([
+            'pickup_point_id' => 'nullable|exists:pickup_points,id',
             'orders' => 'required|array|min:1',
             'orders.*.weekmenu_id' => 'required|exists:weekmenu,id',
             'orders.*.quantity' => 'required|integer|min:1',
@@ -138,6 +146,9 @@ class ClientHomeController extends Controller
                     if (!empty($orderData['notes'])) {
                         $existingOrder->notes = $orderData['notes'];
                     }
+                    if (!empty($validated['pickup_point_id'])) {
+                        $existingOrder->pickup_point_id = $validated['pickup_point_id'];
+                    }
                     $existingOrder->save();
                     $createdOrders[] = $existingOrder;
                 } else {
@@ -145,6 +156,7 @@ class ClientHomeController extends Controller
                         'user_id' => $user->id,
                         'weekmenu_id' => $weekmenu->id,
                         'group_id' => $user->group_id ?? $weekmenu->group_id,
+                        'pickup_point_id' => $validated['pickup_point_id'] ?? null,
                         'quantity' => $addedQty,
                         'notes' => $orderData['notes'] ?? null,
                         'week' => $weekmenu->week,

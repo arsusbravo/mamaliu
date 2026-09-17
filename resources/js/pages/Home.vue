@@ -7,7 +7,9 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import { Label } from '@/components/ui/label';
 import { ShoppingCart, Plus, Minus, X, ZoomIn, Sparkles, Calendar, Strikethrough } from 'lucide-vue-next';
 
 interface Menu {
@@ -19,9 +21,15 @@ interface Menu {
     has_image: boolean;
 }
 
+interface PickupPoint {
+    id: number;
+    name: string;
+}
+
 interface Group {
     id: number;
     name: string;
+    pickup_points: PickupPoint[];
 }
 
 interface Weekmenu {
@@ -55,6 +63,7 @@ interface Props {
     welcome: boolean;
     futureWeeks: FutureWeek[];
     isPreOrder: boolean;
+    userPickupPoints: PickupPoint[];
 }
 
 const props = defineProps<Props>();
@@ -67,6 +76,10 @@ const cart = ref<CartItem[]>([]);
 const showCart = ref(false);
 const showImageDialog = ref(false);
 const selectedImage = ref<string | null>(null);
+
+const selectedPickupPointId = ref<number | null>(
+    props.userPickupPoints.length > 0 ? props.userPickupPoints[0].id : null
+);
 
 const addToCart = (weekmenu: Weekmenu, quantity: number) => {
     const existingItem = cart.value.find(item => item.weekmenu_id === weekmenu.id);
@@ -115,16 +128,22 @@ const placeOrder = () => {
         return;
     }
 
+    if (props.userPickupPoints.length > 1 && !selectedPickupPointId.value) {
+        alert('請選擇取貨地點');
+        return;
+    }
+
     const orders = cart.value.map(item => ({
         weekmenu_id: item.weekmenu_id,
         quantity: item.quantity,
         notes: item.notes,
     }));
 
-    router.post('/place-order', { orders }, {
+    router.post('/place-order', { pickup_point_id: selectedPickupPointId.value, orders }, {
         onSuccess: () => {
             cart.value = [];
             showCart.value = false;
+            selectedPickupPointId.value = props.userPickupPoints.length > 0 ? props.userPickupPoints[0].id : null;
         },
     });
 };
@@ -284,15 +303,34 @@ const selectedImageUrl = computed(() => selectedImage.value || '');
                     </div>
                     
                     <div class="border-t-2 border-gray-200 pt-6 mt-6">
+                        <!-- Pick-up point selector (only shown when group has multiple options) -->
+                        <div v-if="userPickupPoints.length > 1" class="mb-6">
+                            <Label class="text-base font-semibold text-gray-700 mb-2 block">取貨地點 *</Label>
+                            <Select v-model="selectedPickupPointId">
+                                <SelectTrigger class="w-full border-2 border-orange-200 focus:border-orange-400">
+                                    <SelectValue placeholder="請選擇取貨地點..." />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem
+                                        v-for="point in userPickupPoints"
+                                        :key="point.id"
+                                        :value="point.id"
+                                    >
+                                        {{ point.name }}
+                                    </SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
+
                         <div class="flex items-center justify-between text-3xl font-black mb-6 text-gray-800">
                             <span>總計：</span>
                             <span class="text-transparent bg-clip-text bg-linear-to-r from-red-600 to-orange-500">
                                 €{{ cartTotal.toFixed(2) }}
                             </span>
                         </div>
-                        
-                        <Button 
-                            @click="placeOrder" 
+
+                        <Button
+                            @click="placeOrder"
                             class="w-full bg-linear-to-r from-red-600 to-orange-500 hover:from-red-700 hover:to-orange-600 text-white font-bold text-lg py-6 rounded-xl shadow-lg hover:shadow-xl transition-all"
                             size="lg"
                         >

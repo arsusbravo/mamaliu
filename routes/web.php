@@ -13,6 +13,7 @@ use App\Http\Controllers\InvoiceController;
 use App\Http\Controllers\ClientHomeController;
 use App\Http\Controllers\ClientOrderController;
 use App\Http\Controllers\InviteController;
+use App\Http\Controllers\PickupPointController;
 use App\Http\Controllers\UserMigrateController;
 
 Route::get('/images/menu-{id}.jpg', function ($id) {
@@ -74,6 +75,8 @@ Route::middleware(['auth', 'usertype:' . UserType::ADMIN])->prefix('admin')->gro
     Route::delete('groups/{group}', [GroupController::class, 'destroy'])->name('admin.groups_destroy');
     Route::get('groups', [GroupController::class, 'index'])->name('admin.groups_index');
     Route::get('groups/{group}', [GroupController::class, 'show'])->name('admin.groups_show');
+    Route::post('groups/{group}/pickup-points', [PickupPointController::class, 'store'])->name('admin.pickup_points_store');
+    Route::delete('groups/{group}/pickup-points/{pickupPoint}', [PickupPointController::class, 'destroy'])->name('admin.pickup_points_destroy');
 
     Route::get('emails', [EmailContentController::class, 'index'])->name('admin.emails_index');
     Route::get('emails/{email}', [EmailContentController::class, 'show'])->name('admin.emails_show');
