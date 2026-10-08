@@ -10,7 +10,7 @@ return new class extends Migration
     {
         Schema::create('discounts', function (Blueprint $table) {
             $table->increments('id');
-            $table->string('code')->unique();
+            $table->string('code', 50)->unique();
             $table->string('description')->nullable();
 
             $table->string('type'); // 'percentage' | 'fixed'
