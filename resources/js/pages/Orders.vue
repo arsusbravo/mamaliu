@@ -12,6 +12,7 @@ interface OrderItem {
     menu_label: string;
     quantity: number;
     price: number;
+    discount_amount: number;
     total: number;
     notes: string | null;
 }
@@ -20,6 +21,7 @@ interface OrderGroup {
     week: number;
     year: number;
     total: number;
+    discount_total: number;
     items_count: number;
     created_at: string;
     orders: OrderItem[];
@@ -164,6 +166,9 @@ const formatDate = (isoString: string) => {
                                 <div class="flex-1">
                                     <h4 class="font-bold text-gray-800">{{ item.menu_label }}</h4>
                                     <p class="text-sm text-gray-600">€{{ item.price.toFixed(2) }} × {{ item.quantity }}</p>
+                                    <p v-if="item.discount_amount > 0" class="text-sm text-green-600">
+                                        折扣：-€{{ item.discount_amount.toFixed(2) }}
+                                    </p>
                                 </div>
                                 <span class="font-bold text-lg">€{{ item.total.toFixed(2) }}</span>
                             </div>
@@ -174,7 +179,11 @@ const formatDate = (isoString: string) => {
                     </div>
                     
                     <!-- Total -->
-                    <div class="border-t-2 pt-4 mt-4">
+                    <div class="border-t-2 pt-4 mt-4 space-y-2">
+                        <div v-if="selectedOrder.discount_total > 0" class="flex justify-between items-center text-green-600">
+                            <span>折扣</span>
+                            <span>-€{{ selectedOrder.discount_total.toFixed(2) }}</span>
+                        </div>
                         <div class="flex justify-between items-center text-2xl font-black">
                             <span>總計</span>
                             <span class="text-transparent bg-clip-text bg-linear-to-r from-red-600 to-orange-500">

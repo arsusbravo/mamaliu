@@ -53,6 +53,7 @@ interface Order {
     id: number;
     quantity: number;
     special_price: number | null;
+    discount_amount: number | null;
     notes: string | null;
     weekmenu: Weekmenu;
     pickup_point: PickupPoint | null;
@@ -65,6 +66,7 @@ interface GroupedOrder {
     group: Group | null;
     orders: Order[];
     total: number;
+    discount_total: number;
     order_date: string;
 }
 
@@ -166,6 +168,10 @@ const getPrice = (order: Order): number => {
 
 const getSubtotal = (order: Order): number => {
     return order.quantity * getPrice(order);
+};
+
+const getDiscount = (order: Order): number => {
+    return order.discount_amount ?? 0;
 };
 
 const getUniqueNotes = (orders: Order[]): string[] => {
@@ -500,8 +506,8 @@ const handleInvoiceSuccess = () => {
                                 <div class="border-t border-yellow-200 mt-3 mb-3" />
                             </div>
 
-                            <div 
-                                v-for="order in groupedOrder.orders" 
+                            <div
+                                v-for="order in groupedOrder.orders"
                                 :key="order.id"
                                 class="flex justify-between text-sm hover:bg-blue-50 p-2 rounded transition-colors"
                             >
@@ -509,18 +515,26 @@ const handleInvoiceSuccess = () => {
                                     <span class="font-medium text-blue-700">{{ order.quantity }}×</span>
                                     <span class="ml-2">{{ order.weekmenu.menu.label }}</span>
                                 </div>
-                                <div class="text-right font-medium text-gray-700">
-                                    €{{ getSubtotal(order).toFixed(2) }}
+                                <div class="text-right">
+                                    <div class="font-medium text-gray-700">€{{ getSubtotal(order).toFixed(2) }}</div>
+                                    <div v-if="getDiscount(order) > 0" class="text-xs text-green-600">
+                                        -€{{ getDiscount(order).toFixed(2) }}
+                                    </div>
                                 </div>
-                                <button 
-                                    @click="deleteOrder(order.id)" 
+                                <button
+                                    @click="deleteOrder(order.id)"
                                     class="ml-4 text-sm text-white bg-red-500 hover:bg-red-600 rounded p-1"
                                 >
                                     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-xicon h-4 w-4"><path d="M18 6 6 18"></path><path d="m6 6 12 12"></path></svg>
-                                </button>  
+                                </button>
                             </div>
 
                             <div class="border-t border-blue-200" />
+
+                            <div v-if="groupedOrder.discount_total > 0" class="flex justify-between text-sm text-green-600 px-3">
+                                <span>Discount</span>
+                                <span>-€{{ groupedOrder.discount_total.toFixed(2) }}</span>
+                            </div>
 
                             <div class="flex justify-between font-bold bg-linear-to-r from-blue-50 to-orange-50 p-3 rounded-lg">
                                 <span class="text-gray-700">Total</span>

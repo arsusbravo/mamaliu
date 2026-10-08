@@ -16,6 +16,8 @@ class Order extends Model
         'pickup_point_id',
         'quantity',
         'special_price',
+        'discount_id',
+        'discount_amount',
         'week',
         'year',
         'notes',
@@ -24,6 +26,7 @@ class Order extends Model
     protected $casts = [
         'quantity' => 'integer',
         'special_price' => 'float',
+        'discount_amount' => 'float',
         'week' => 'integer',
         'year' => 'integer',
     ];
@@ -46,6 +49,31 @@ class Order extends Model
     public function pickupPoint()
     {
         return $this->belongsTo(PickupPoint::class);
+    }
+
+    public function discount()
+    {
+        return $this->belongsTo(Discount::class);
+    }
+
+    public function unitPrice(): float
+    {
+        return $this->special_price ?? $this->weekmenu->menu->price;
+    }
+
+    public function lineSubtotal(): float
+    {
+        return $this->unitPrice() * $this->quantity;
+    }
+
+    public function lineDiscount(): float
+    {
+        return (float) ($this->discount_amount ?? 0);
+    }
+
+    public function lineTotal(): float
+    {
+        return $this->lineSubtotal() - $this->lineDiscount();
     }
 
     public function invoiceItems()

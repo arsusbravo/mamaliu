@@ -18,6 +18,7 @@ class OrderConfirmation extends Mailable
     public $week;
     public $year;
     public $total;
+    public $totalDiscount;
     public $groupName;
 
     public function __construct($user, $orders, $week, $year)
@@ -26,13 +27,11 @@ class OrderConfirmation extends Mailable
         $this->orders = $orders;
         $this->week = $week;
         $this->year = $year;
-        
-        // Calculate total
-        $this->total = collect($orders)->sum(function ($order) {
-            $price = $order->special_price ?? $order->weekmenu->menu->price;
-            return $price * $order->quantity;
-        });
-        
+
+        // Calculate total (post-discount) and how much was discounted
+        $this->total = collect($orders)->sum(fn ($order) => $order->lineTotal());
+        $this->totalDiscount = collect($orders)->sum(fn ($order) => $order->lineDiscount());
+
         // Get group name from first order (all orders in same week should have same group)
         $this->groupName = $orders->first()?->weekmenu?->group?->name ?? 'General delivery area';
     }

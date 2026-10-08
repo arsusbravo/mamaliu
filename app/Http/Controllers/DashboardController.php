@@ -34,7 +34,7 @@ class DashboardController extends Controller
             ->get();
         
         $totalRevenueThisQuarter = $quarterOrders->sum(function ($order) {
-            return ($order->special_price ?? $order->weekmenu->menu->price) * $order->quantity;
+            return $order->lineTotal();
         });
 
         // Count unique weeks with menus in this quarter
@@ -61,7 +61,7 @@ class DashboardController extends Controller
         ->map(function ($orders) {
             $user = $orders->first()->user;
             $total = $orders->sum(function ($order) {
-                return ($order->special_price ?? $order->weekmenu->menu->price) * $order->quantity;
+                return $order->lineTotal();
             });
             
             // Get earliest week/year
@@ -111,7 +111,7 @@ class DashboardController extends Controller
             ->map(function ($orders) {
                 $user = $orders->first()->user;
                 $total = $orders->sum(function ($order) {
-                    return ($order->special_price ?? $order->weekmenu->menu->price) * $order->quantity;
+                    return $order->lineTotal();
                 });
                 
                 // Get all unique notes

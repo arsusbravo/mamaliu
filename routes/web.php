@@ -9,6 +9,7 @@ use App\Http\Controllers\WeekmenuController;
 use App\Http\Controllers\ClientController;
 use App\Http\Controllers\EmailContentController;
 use App\Http\Controllers\GroupController;
+use App\Http\Controllers\DiscountController;
 use App\Http\Controllers\InvoiceController;
 use App\Http\Controllers\ClientHomeController;
 use App\Http\Controllers\ClientOrderController;
@@ -78,6 +79,11 @@ Route::middleware(['auth', 'usertype:' . UserType::ADMIN])->prefix('admin')->gro
     Route::post('groups/{group}/pickup-points', [PickupPointController::class, 'store'])->name('admin.pickup_points_store');
     Route::delete('groups/{group}/pickup-points/{pickupPoint}', [PickupPointController::class, 'destroy'])->name('admin.pickup_points_destroy');
 
+    Route::post('discounts', [DiscountController::class, 'store'])->name('admin.discounts_store');
+    Route::put('discounts/{discount}', [DiscountController::class, 'update'])->name('admin.discounts_update');
+    Route::delete('discounts/{discount}', [DiscountController::class, 'destroy'])->name('admin.discounts_destroy');
+    Route::get('discounts', [DiscountController::class, 'index'])->name('admin.discounts_index');
+
     Route::get('emails', [EmailContentController::class, 'index'])->name('admin.emails_index');
     Route::get('emails/{email}', [EmailContentController::class, 'show'])->name('admin.emails_show');
 
@@ -90,6 +96,7 @@ Route::middleware(['auth', 'usertype:' . UserType::ADMIN])->prefix('admin')->gro
 Route::middleware(['auth', 'usertype:' . UserType::CLIENT])->group(function () {
     Route::get('/', [ClientHomeController::class, 'index'])->name('home');
     Route::post('/place-order', [ClientHomeController::class, 'placeOrder'])->name('place_order');
+    Route::post('/validate-discount', [ClientHomeController::class, 'validateDiscount'])->name('validate_discount');
     Route::get('/orders', [ClientOrderController::class, 'index'])->name('user.orders_index');
 });
 

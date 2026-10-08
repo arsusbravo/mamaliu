@@ -47,13 +47,26 @@
                                                     <table width="100%" cellpadding="0" cellspacing="0">
                                                         <tr>
                                                             <td width="70%">{{ $item->quantity }}× {{ $item->weekmenu->menu->label }}</td>
-                                                            <td width="30%" align="right">€{{ number_format(($item->special_price ?? $item->weekmenu->menu->price) * $item->quantity, 2) }}</td>
+                                                            <td width="30%" align="right">€{{ number_format($item->lineTotal(), 2) }}</td>
                                                         </tr>
                                                     </table>
                                                 </td>
                                             </tr>
                                         @endforeach
-                                        
+
+                                        @if($order['discount_total'] > 0)
+                                            <tr>
+                                                <td style="padding: 3px 0; font-size: 12px; color: #0a7d2f;">
+                                                    <table width="100%" cellpadding="0" cellspacing="0">
+                                                        <tr>
+                                                            <td width="70%">Discount</td>
+                                                            <td width="30%" align="right">-€{{ number_format($order['discount_total'], 2) }}</td>
+                                                        </tr>
+                                                    </table>
+                                                </td>
+                                            </tr>
+                                        @endif
+
                                         <tr>
                                             <td class="total-row">
                                                 <table width="100%" cellpadding="0" cellspacing="0">

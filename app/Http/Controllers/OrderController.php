@@ -54,17 +54,16 @@ class OrderController extends Controller
             $user = $userOrders->first()->user;
             $userGroup = $user->group;
 
-            // Calculate total
-            $total = $userOrders->sum(function ($order) {
-                $price = $order->special_price ?? $order->weekmenu->menu->price;
-                return $order->quantity * $price;
-            });
+            // Calculate total (post-discount) and how much of it was discounted
+            $total = $userOrders->sum(fn ($order) => $order->lineTotal());
+            $discountTotal = $userOrders->sum(fn ($order) => $order->lineDiscount());
 
             return [
                 'user' => $user,
                 'group' => $userGroup,
                 'orders' => $userOrders,
                 'total' => $total,
+                'discount_total' => $discountTotal,
                 'order_date' => $userOrders->first()->created_at,
             ];
         })->values();
@@ -153,8 +152,7 @@ class OrderController extends Controller
                     $row['menu_' . $menu->id] = $quantity;
                     $totalQuantity += $quantity;
                     if ($order) {
-                        $price = $order->special_price ?? $order->weekmenu->menu->price;
-                        $totalPrice += $quantity * $price;
+                        $totalPrice += $order->lineTotal();
                     }
                 }
 
@@ -324,16 +322,15 @@ class OrderController extends Controller
             $user = $userOrders->first()->user;
             $userGroup = $user->group;
 
-            $total = $userOrders->sum(function ($order) {
-                $price = $order->special_price ?? $order->weekmenu->menu->price;
-                return $order->quantity * $price;
-            });
+            $total = $userOrders->sum(fn ($order) => $order->lineTotal());
+            $discountTotal = $userOrders->sum(fn ($order) => $order->lineDiscount());
 
             return [
                 'user' => $user,
                 'group' => $userGroup,
                 'orders' => $userOrders,
                 'total' => $total,
+                'discount_total' => $discountTotal,
                 'order_date' => $userOrders->first()->created_at,
             ];
         })->values();

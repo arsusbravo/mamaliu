@@ -118,8 +118,13 @@
                         {{ $order->quantity }}× {{ $order->weekmenu->menu->label }}
                     </div>
                     <div style="font-size: 14px; color: #666;">
-                        €{{ number_format($order->special_price ?? $order->weekmenu->menu->price, 2) }} each
+                        €{{ number_format($order->unitPrice(), 2) }} each
                     </div>
+                    @if($order->lineDiscount() > 0)
+                        <div style="font-size: 14px; color: #0a7d2f;">
+                            Discount: -€{{ number_format($order->lineDiscount(), 2) }}
+                        </div>
+                    @endif
                     @if($order->notes)
                         <div class="item-notes">
                             📝 {{ $order->notes }}
@@ -127,12 +132,17 @@
                     @endif
                 </div>
                 <div class="item-price">
-                    €{{ number_format(($order->special_price ?? $order->weekmenu->menu->price) * $order->quantity, 2) }}
+                    €{{ number_format($order->lineTotal(), 2) }}
                 </div>
             </div>
         @endforeach
-        
+
         <div class="total">
+            @if($totalDiscount > 0)
+                <div style="font-size: 14px; color: #0a7d2f; margin-bottom: 5px;">
+                    Discount applied: -€{{ number_format($totalDiscount, 2) }}
+                </div>
+            @endif
             <div style="font-size: 16px; color: #666; margin-bottom: 10px;">Total Amount</div>
             <div class="total-amount">€{{ number_format($total, 2) }}</div>
         </div>

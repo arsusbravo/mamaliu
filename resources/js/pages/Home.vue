@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue';
+import { ref, computed, watch } from 'vue';
 import { router, Head } from '@inertiajs/vue3';
 import ClientLayout from '@/layouts/ClientLayout.vue';
 import MenuCard from '@/components/MenuCard.vue';
@@ -81,6 +81,16 @@ const selectedPickupPointId = ref<number | null>(
     props.userPickupPoints.length > 0 ? props.userPickupPoints[0].id : null
 );
 
+const discountCode = ref('');
+const appliedDiscount = ref<{ amount: number } | null>(null);
+const discountError = ref<string | null>(null);
+const applyingDiscount = ref(false);
+
+const getCookie = (name: string): string => {
+    const match = document.cookie.match(new RegExp('(?:^|; )' + name + '=([^;]*)'));
+    return match ? decodeURIComponent(match[1]) : '';
+};
+
 const addToCart = (weekmenu: Weekmenu, quantity: number) => {
     const existingItem = cart.value.find(item => item.weekmenu_id === weekmenu.id);
     
@@ -118,9 +128,58 @@ const cartTotal = computed(() => {
     return cart.value.reduce((sum, item) => sum + (item.price * item.quantity), 0);
 });
 
+const discountAmount = computed(() => appliedDiscount.value?.amount ?? 0);
+
+const cartTotalAfterDiscount = computed(() => Math.max(0, cartTotal.value - discountAmount.value));
+
 const cartCount = computed(() => {
     return cart.value.reduce((sum, item) => sum + item.quantity, 0);
 });
+
+// Clear any applied/attempted discount preview whenever the cart changes, so a stale
+// amount is never shown. The server always recalculates authoritatively on submit anyway.
+watch(cart, () => {
+    appliedDiscount.value = null;
+    discountError.value = null;
+}, { deep: true });
+
+const applyDiscountCode = async () => {
+    if (!discountCode.value.trim()) return;
+
+    applyingDiscount.value = true;
+    discountError.value = null;
+    appliedDiscount.value = null;
+
+    try {
+        const response = await fetch('/validate-discount', {
+            method: 'POST',
+            credentials: 'same-origin',
+            headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+                'X-XSRF-TOKEN': getCookie('XSRF-TOKEN'),
+            },
+            body: JSON.stringify({
+                discount_code: discountCode.value.trim(),
+                orders: cart.value.map(item => ({
+                    weekmenu_id: item.weekmenu_id,
+                    quantity: item.quantity,
+                })),
+            }),
+        });
+        const data = await response.json();
+
+        if (data.valid) {
+            appliedDiscount.value = { amount: data.discount_amount };
+        } else {
+            discountError.value = data.message || '此優惠碼無效';
+        }
+    } catch (error) {
+        discountError.value = '無法驗證優惠碼，請稍後再試';
+    } finally {
+        applyingDiscount.value = false;
+    }
+};
 
 const placeOrder = () => {
     if (cart.value.length === 0) {
@@ -139,11 +198,23 @@ const placeOrder = () => {
         notes: item.notes,
     }));
 
-    router.post('/place-order', { pickup_point_id: selectedPickupPointId.value, orders }, {
+    router.post('/place-order', {
+        pickup_point_id: selectedPickupPointId.value,
+        discount_code: discountCode.value.trim() || null,
+        orders,
+    }, {
         onSuccess: () => {
             cart.value = [];
             showCart.value = false;
             selectedPickupPointId.value = props.userPickupPoints.length > 0 ? props.userPickupPoints[0].id : null;
+            discountCode.value = '';
+            appliedDiscount.value = null;
+            discountError.value = null;
+        },
+        onError: (errors) => {
+            if (errors.discount_code) {
+                discountError.value = errors.discount_code;
+            }
         },
     });
 };
@@ -322,11 +393,46 @@ const selectedImageUrl = computed(() => selectedImage.value || '');
                             </Select>
                         </div>
 
-                        <div class="flex items-center justify-between text-3xl font-black mb-6 text-gray-800">
-                            <span>總計：</span>
-                            <span class="text-transparent bg-clip-text bg-linear-to-r from-red-600 to-orange-500">
-                                €{{ cartTotal.toFixed(2) }}
-                            </span>
+                        <!-- Discount code -->
+                        <div class="mb-6">
+                            <Label class="text-base font-semibold text-gray-700 mb-2 block">優惠碼</Label>
+                            <div class="flex gap-2">
+                                <Input
+                                    v-model="discountCode"
+                                    placeholder="請輸入您的I僑卡號碼"
+                                    class="border-2 border-orange-200 focus:border-orange-400"
+                                    @keydown.enter.prevent="applyDiscountCode"
+                                />
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    :disabled="!discountCode.trim() || applyingDiscount"
+                                    @click="applyDiscountCode"
+                                >
+                                    套用
+                                </Button>
+                            </div>
+                            <p v-if="discountError" class="text-sm text-red-600 mt-2">{{ discountError }}</p>
+                            <p v-if="appliedDiscount" class="text-sm text-green-600 mt-2">
+                                優惠碼已套用：-€{{ appliedDiscount.amount.toFixed(2) }}
+                            </p>
+                        </div>
+
+                        <div class="space-y-2 mb-6">
+                            <div class="flex items-center justify-between text-lg text-gray-600">
+                                <span>小計：</span>
+                                <span>€{{ cartTotal.toFixed(2) }}</span>
+                            </div>
+                            <div v-if="appliedDiscount" class="flex items-center justify-between text-lg text-green-600">
+                                <span>折扣：</span>
+                                <span>-€{{ discountAmount.toFixed(2) }}</span>
+                            </div>
+                            <div class="flex items-center justify-between text-3xl font-black text-gray-800">
+                                <span>總計：</span>
+                                <span class="text-transparent bg-clip-text bg-linear-to-r from-red-600 to-orange-500">
+                                    €{{ cartTotalAfterDiscount.toFixed(2) }}
+                                </span>
+                            </div>
                         </div>
 
                         <Button

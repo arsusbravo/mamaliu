@@ -23,24 +23,24 @@ class ClientOrderController extends Controller
             })
             ->map(function ($weekOrders) {
                 $firstOrder = $weekOrders->first();
-                $total = $weekOrders->sum(function ($order) {
-                    return ($order->special_price ?? $order->weekmenu->menu->price) * $order->quantity;
-                });
-                
+                $total = $weekOrders->sum(fn ($order) => $order->lineTotal());
+                $discountTotal = $weekOrders->sum(fn ($order) => $order->lineDiscount());
+
                 return [
                     'week' => $firstOrder->week,
                     'year' => $firstOrder->year,
                     'total' => $total,
+                    'discount_total' => $discountTotal,
                     'items_count' => $weekOrders->count(),
                     'created_at' => $firstOrder->created_at->toISOString(),
                     'orders' => $weekOrders->map(function ($order) {
-                        $price = $order->special_price ?? $order->weekmenu->menu->price;
                         return [
                             'id' => $order->id,
                             'menu_label' => $order->weekmenu->menu->label,
                             'quantity' => $order->quantity,
-                            'price' => $price,
-                            'total' => $price * $order->quantity,
+                            'price' => $order->unitPrice(),
+                            'discount_amount' => $order->lineDiscount(),
+                            'total' => $order->lineTotal(),
                             'notes' => $order->notes,
                         ];
                     })->values(),

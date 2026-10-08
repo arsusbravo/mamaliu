@@ -17,11 +17,8 @@ class InvoiceController extends Controller
             ->orderBy('invoice_date', 'desc')
             ->get()
             ->map(function ($invoice) {
-                $total = $invoice->invoiceItems->sum(function ($item) {
-                    $price = $item->order->special_price ?? $item->order->weekmenu->menu->price;
-                    return $item->order->quantity * $price;
-                });
-                
+                $total = $invoice->invoiceItems->sum(fn ($item) => $item->order->lineTotal());
+
                 return [
                     'id' => $invoice->id,
                     'invoice_number' => $invoice->invoice_number,
@@ -87,17 +84,16 @@ class InvoiceController extends Controller
         ])->findOrFail($id);
 
         $items = $invoice->invoiceItems->map(function ($item) {
-            $price = $item->order->special_price ?? $item->order->weekmenu->menu->price;
-            $total = $item->order->quantity * $price;
-            
             return [
                 'menu_label' => $item->order->weekmenu->menu->label,
                 'quantity' => $item->order->quantity,
-                'price' => $price,
-                'total' => $total,
+                'price' => $item->order->unitPrice(),
+                'discount' => $item->order->lineDiscount(),
+                'total' => $item->order->lineTotal(),
             ];
         });
 
+        $totalDiscount = $items->sum('discount');
         $totalInclTax = $items->sum('total');
         $totalExclTax = $totalInclTax / 1.09;
         $vat = $totalInclTax - $totalExclTax;
@@ -105,6 +101,7 @@ class InvoiceController extends Controller
         return view('invoices.pdf', [
             'invoice' => $invoice,
             'items' => $items,
+            'totalDiscount' => $totalDiscount,
             'totalInclTax' => $totalInclTax,
             'totalExclTax' => $totalExclTax,
             'vat' => $vat,

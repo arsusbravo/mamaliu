@@ -126,6 +126,12 @@
 
     <div class="totals">
         <table>
+            @if($totalDiscount > 0)
+                <tr>
+                    <td>Discount applied:</td>
+                    <td class="text-right">-€{{ number_format($totalDiscount, 2) }}</td>
+                </tr>
+            @endif
             <tr>
                 <td>Subtotal (Excl. VAT):</td>
                 <td class="text-right">€{{ number_format($totalExclTax, 2) }}</td>
