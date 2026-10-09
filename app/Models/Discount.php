@@ -64,6 +64,19 @@ class Discount extends Model
         return $query->where('active', true);
     }
 
+    public function scopeCurrentlyValid($query)
+    {
+        $now = now();
+
+        return $query->active()
+            ->where(function ($q) use ($now) {
+                $q->whereNull('valid_from')->orWhere('valid_from', '<=', $now);
+            })
+            ->where(function ($q) use ($now) {
+                $q->whereNull('valid_until')->orWhere('valid_until', '>=', $now);
+            });
+    }
+
     public function isWithinDateWindow(?Carbon $at = null): bool
     {
         $at = $at ?? now();

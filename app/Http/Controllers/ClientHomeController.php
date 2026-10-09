@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Discount;
 use App\Models\Weekmenu;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
@@ -110,6 +111,7 @@ class ClientHomeController extends Controller
             'userPickupPoints' => $user->group
                 ? $user->group->load('pickupPoints')->pickupPoints->map(fn ($p) => ['id' => $p->id, 'name' => $p->name])->values()
                 : [],
+            'hasActiveDiscounts' => Discount::currentlyValid()->exists(),
         ]);
     }
 

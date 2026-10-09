@@ -64,6 +64,7 @@ interface Props {
     futureWeeks: FutureWeek[];
     isPreOrder: boolean;
     userPickupPoints: PickupPoint[];
+    hasActiveDiscounts: boolean;
 }
 
 const props = defineProps<Props>();
@@ -393,8 +394,8 @@ const selectedImageUrl = computed(() => selectedImage.value || '');
                             </Select>
                         </div>
 
-                        <!-- Discount code -->
-                        <div class="mb-6">
+                        <!-- Discount code (only shown when an active discount currently exists) -->
+                        <div v-if="hasActiveDiscounts" class="mb-6">
                             <Label class="text-base font-semibold text-gray-700 mb-2 block">優惠碼</Label>
                             <div class="flex gap-2">
                                 <Input
