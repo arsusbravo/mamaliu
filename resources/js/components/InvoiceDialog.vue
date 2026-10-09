@@ -27,7 +27,9 @@ interface Order {
     notes: string | null;
     week: number;
     year: number;
-    weekmenu: Weekmenu;
+    weekmenu: Weekmenu | null;
+    menu_item: Menu;
+    is_gift: boolean;
 }
 
 interface User {
@@ -89,7 +91,7 @@ const selectedOrders = computed(() => {
 });
 
 const getOrderPrice = (order: Order) => {
-    return order.special_price ?? order.weekmenu.menu.price;
+    return order.special_price ?? order.menu_item.price;
 };
 
 const getOrderTotal = (order: Order) => {
@@ -232,9 +234,10 @@ const viewInvoice = (invoiceId: number) => {
                             >
                                 <div class="flex-1">
                                     <div class="font-medium">
-                                        {{ orderItem.quantity }}× {{ orderItem.weekmenu.menu.label }}
+                                        {{ orderItem.quantity }}× {{ orderItem.menu_item.label }}
+                                        <span v-if="orderItem.is_gift" class="ml-1 text-xs font-semibold text-green-700">🎁 FREE</span>
                                     </div>
-                                    <div class="text-sm text-muted-foreground">
+                                    <div v-if="!orderItem.is_gift" class="text-sm text-muted-foreground">
                                         €{{ getOrderPrice(orderItem).toFixed(2) }} each
                                     </div>
                                 </div>

@@ -12,7 +12,7 @@ class ClientOrderController extends Controller
         $user = $request->user();
         
         // Get all orders grouped by week/year
-        $orders = Order::with(['weekmenu.menu', 'group'])
+        $orders = Order::with(['weekmenu.menu', 'menu', 'group'])
             ->where('user_id', $user->id)
             ->orderBy('year', 'desc')
             ->orderBy('week', 'desc')
@@ -36,10 +36,11 @@ class ClientOrderController extends Controller
                     'orders' => $weekOrders->map(function ($order) {
                         return [
                             'id' => $order->id,
-                            'menu_label' => $order->weekmenu->menu->label,
+                            'menu_label' => $order->menu_item->label,
                             'quantity' => $order->quantity,
                             'price' => $order->unitPrice(),
                             'discount_amount' => $order->lineDiscount(),
+                            'is_gift' => $order->is_gift,
                             'total' => $order->lineTotal(),
                             'notes' => $order->notes,
                         ];

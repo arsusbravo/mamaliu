@@ -55,7 +55,9 @@ interface Order {
     special_price: number | null;
     discount_amount: number | null;
     notes: string | null;
-    weekmenu: Weekmenu;
+    weekmenu: Weekmenu | null;
+    menu_item: Menu;
+    is_gift: boolean;
     pickup_point: PickupPoint | null;
     week: number;
     year: number;
@@ -163,7 +165,7 @@ const formatDate = (dateString: string) => {
 };
 
 const getPrice = (order: Order): number => {
-    return order.special_price ?? order.weekmenu.menu.price;
+    return order.special_price ?? order.menu_item.price;
 };
 
 const getSubtotal = (order: Order): number => {
@@ -513,9 +515,15 @@ const handleInvoiceSuccess = () => {
                             >
                                 <div class="flex-1">
                                     <span class="font-medium text-blue-700">{{ order.quantity }}×</span>
-                                    <span class="ml-2">{{ order.weekmenu.menu.label }}</span>
+                                    <span class="ml-2">{{ order.menu_item.label }}</span>
+                                    <span
+                                        v-if="order.is_gift"
+                                        class="ml-2 inline-flex items-center rounded-full bg-green-100 px-2 py-0.5 text-xs font-semibold text-green-700"
+                                    >
+                                        🎁 FREE
+                                    </span>
                                 </div>
-                                <div class="text-right">
+                                <div v-if="!order.is_gift" class="text-right">
                                     <div class="font-medium text-gray-700">€{{ getSubtotal(order).toFixed(2) }}</div>
                                     <div v-if="getDiscount(order) > 0" class="text-xs text-green-600">
                                         -€{{ getDiscount(order).toFixed(2) }}

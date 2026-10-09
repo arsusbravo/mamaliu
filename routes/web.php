@@ -10,6 +10,7 @@ use App\Http\Controllers\ClientController;
 use App\Http\Controllers\EmailContentController;
 use App\Http\Controllers\GroupController;
 use App\Http\Controllers\DiscountController;
+use App\Http\Controllers\GiftController;
 use App\Http\Controllers\InvoiceController;
 use App\Http\Controllers\ClientHomeController;
 use App\Http\Controllers\ClientOrderController;
@@ -84,6 +85,11 @@ Route::middleware(['auth', 'usertype:' . UserType::ADMIN])->prefix('admin')->gro
     Route::delete('discounts/{discount}', [DiscountController::class, 'destroy'])->name('admin.discounts_destroy');
     Route::get('discounts', [DiscountController::class, 'index'])->name('admin.discounts_index');
 
+    Route::post('gifts', [GiftController::class, 'store'])->name('admin.gifts_store');
+    Route::put('gifts/{gift}', [GiftController::class, 'update'])->name('admin.gifts_update');
+    Route::delete('gifts/{gift}', [GiftController::class, 'destroy'])->name('admin.gifts_destroy');
+    Route::get('gifts', [GiftController::class, 'index'])->name('admin.gifts_index');
+
     Route::get('emails', [EmailContentController::class, 'index'])->name('admin.emails_index');
     Route::get('emails/{email}', [EmailContentController::class, 'show'])->name('admin.emails_show');
 
@@ -97,6 +103,7 @@ Route::middleware(['auth', 'usertype:' . UserType::CLIENT])->group(function () {
     Route::get('/', [ClientHomeController::class, 'index'])->name('home');
     Route::post('/place-order', [ClientHomeController::class, 'placeOrder'])->name('place_order');
     Route::post('/validate-discount', [ClientHomeController::class, 'validateDiscount'])->name('validate_discount');
+    Route::post('/validate-gift', [ClientHomeController::class, 'validateGift'])->name('validate_gift');
     Route::get('/orders', [ClientOrderController::class, 'index'])->name('user.orders_index');
 });
 

@@ -115,15 +115,20 @@
             <div class="order-item">
                 <div class="item-details">
                     <div class="item-name">
-                        {{ $order->quantity }}× {{ $order->weekmenu->menu->label }}
+                        {{ $order->quantity }}× {{ $order->menu_item->label }}
+                        @if($order->is_gift)
+                            <span style="color: #0a7d2f; font-weight: 600;">🎁 FREE</span>
+                        @endif
                     </div>
-                    <div style="font-size: 14px; color: #666;">
-                        €{{ number_format($order->unitPrice(), 2) }} each
-                    </div>
-                    @if($order->lineDiscount() > 0)
-                        <div style="font-size: 14px; color: #0a7d2f;">
-                            Discount: -€{{ number_format($order->lineDiscount(), 2) }}
+                    @if(!$order->is_gift)
+                        <div style="font-size: 14px; color: #666;">
+                            €{{ number_format($order->unitPrice(), 2) }} each
                         </div>
+                        @if($order->lineDiscount() > 0)
+                            <div style="font-size: 14px; color: #0a7d2f;">
+                                Discount: -€{{ number_format($order->lineDiscount(), 2) }}
+                            </div>
+                        @endif
                     @endif
                     @if($order->notes)
                         <div class="item-notes">
@@ -132,7 +137,11 @@
                     @endif
                 </div>
                 <div class="item-price">
-                    €{{ number_format($order->lineTotal(), 2) }}
+                    @if($order->is_gift)
+                        FREE
+                    @else
+                        €{{ number_format($order->lineTotal(), 2) }}
+                    @endif
                 </div>
             </div>
         @endforeach

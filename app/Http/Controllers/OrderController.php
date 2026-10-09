@@ -25,7 +25,7 @@ class OrderController extends Controller
         $currentYear = $request->get('year', Carbon::now()->year);
 
         // Get orders with relationships
-        $query = Order::with(['weekmenu.menu', 'user.group', 'pickupPoint'])
+        $query = Order::with(['weekmenu.menu', 'menu', 'user.group', 'pickupPoint'])
             ->byWeek($currentWeek, $currentYear);
 
         // Filter by client's group
@@ -42,6 +42,8 @@ class OrderController extends Controller
                 $q->whereHas('user', function ($userQuery) use ($search) {
                     $userQuery->where('name', 'like', "%{$search}%");
                 })->orWhereHas('weekmenu.menu', function ($menuQuery) use ($search) {
+                    $menuQuery->where('label', 'like', "%{$search}%");
+                })->orWhereHas('menu', function ($menuQuery) use ($search) {
                     $menuQuery->where('label', 'like', "%{$search}%");
                 });
             });
@@ -89,7 +91,7 @@ class OrderController extends Controller
         $currentWeek = $request->get('week', Carbon::now()->week);
         $currentYear = $request->get('year', Carbon::now()->year);
 
-        $query = Order::with(['weekmenu.menu', 'user.group', 'pickupPoint'])
+        $query = Order::with(['weekmenu.menu', 'menu', 'user.group', 'pickupPoint'])
             ->byWeek($currentWeek, $currentYear);
 
         if ($request->filled('group_id')) {
@@ -105,13 +107,15 @@ class OrderController extends Controller
                     $userQuery->where('name', 'like', "%{$search}%");
                 })->orWhereHas('weekmenu.menu', function ($menuQuery) use ($search) {
                     $menuQuery->where('label', 'like', "%{$search}%");
+                })->orWhereHas('menu', function ($menuQuery) use ($search) {
+                    $menuQuery->where('label', 'like', "%{$search}%");
                 });
             });
         }
 
         $orders = $query->get();
 
-        $menus = $orders->pluck('weekmenu.menu')->unique('id')->sortBy('label')->values();
+        $menus = $orders->map(fn ($o) => $o->menu_item)->unique('id')->sortBy('label')->values();
 
         $headings = ['Name'];
         foreach ($menus as $menu) {
@@ -147,13 +151,14 @@ class OrderController extends Controller
                 $totalPrice = 0;
 
                 foreach ($menus as $menu) {
-                    $order = $userOrderGroup->firstWhere('weekmenu.menu.id', $menu->id);
-                    $quantity = $order ? $order->quantity : 0;
+                    // A user can have more than one order line for the same menu (e.g. a
+                    // gift earned across two separate checkouts in the same week), so sum
+                    // every matching line rather than taking just the first one.
+                    $matchingOrders = $userOrderGroup->filter(fn ($o) => $o->menu_item->id === $menu->id);
+                    $quantity = $matchingOrders->sum('quantity');
                     $row['menu_' . $menu->id] = $quantity;
                     $totalQuantity += $quantity;
-                    if ($order) {
-                        $totalPrice += $order->lineTotal();
-                    }
+                    $totalPrice += $matchingOrders->sum(fn ($o) => $o->lineTotal());
                 }
 
                 $row['total_quantity'] = $totalQuantity;
@@ -294,7 +299,7 @@ class OrderController extends Controller
         $currentYear = $request->get('year', Carbon::now()->year);
 
         // Get orders with same filters
-        $query = Order::with(['weekmenu.menu', 'user.group'])
+        $query = Order::with(['weekmenu.menu', 'menu', 'user.group'])
             ->byWeek($currentWeek, $currentYear);
 
         // Filter by client's group
@@ -310,6 +315,8 @@ class OrderController extends Controller
                 $q->whereHas('user', function ($userQuery) use ($search) {
                     $userQuery->where('name', 'like', "%{$search}%");
                 })->orWhereHas('weekmenu.menu', function ($menuQuery) use ($search) {
+                    $menuQuery->where('label', 'like', "%{$search}%");
+                })->orWhereHas('menu', function ($menuQuery) use ($search) {
                     $menuQuery->where('label', 'like', "%{$search}%");
                 });
             });

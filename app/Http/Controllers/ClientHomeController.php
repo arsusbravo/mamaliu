@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Discount;
+use App\Models\Gift;
 use App\Models\Weekmenu;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
@@ -10,7 +11,10 @@ use App\Models\Order;
 use App\Mail\OrderConfirmation;
 use App\Exceptions\DiscountIneligibleException;
 use App\Exceptions\DiscountNotFoundException;
+use App\Exceptions\GiftIneligibleException;
+use App\Exceptions\GiftNotFoundException;
 use App\Services\DiscountService;
+use App\Services\GiftService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Log;
@@ -112,6 +116,7 @@ class ClientHomeController extends Controller
                 ? $user->group->load('pickupPoints')->pickupPoints->map(fn ($p) => ['id' => $p->id, 'name' => $p->name])->values()
                 : [],
             'hasActiveDiscounts' => Discount::currentlyValid()->exists(),
+            'hasActiveGifts' => Gift::currentlyValid()->exists(),
         ]);
     }
 
@@ -167,11 +172,42 @@ class ClientHomeController extends Controller
         }
     }
 
+    public function validateGift(Request $request)
+    {
+        $validated = $request->validate([
+            'gift_code' => 'required|string|max:50',
+            'orders' => 'required|array|min:1',
+            'orders.*.weekmenu_id' => 'required|exists:weekmenu,id',
+            'orders.*.quantity' => 'required|integer|min:1',
+        ]);
+
+        $giftService = app(GiftService::class);
+
+        try {
+            $gift = $giftService->findValidCode($validated['gift_code']);
+            $cartLines = $this->buildCartLines($validated['orders']);
+            $giftService->checkEligibility($gift, $request->user(), $cartLines);
+            $result = $giftService->calculateGift($gift, $cartLines);
+
+            return response()->json([
+                'valid' => true,
+                'quantity' => $result['quantity'],
+                'reward_menu_label' => $gift->rewardMenu->label,
+            ]);
+        } catch (GiftNotFoundException|GiftIneligibleException $e) {
+            return response()->json([
+                'valid' => false,
+                'message' => $e->userMessage,
+            ]);
+        }
+    }
+
     public function placeOrder(Request $request)
     {
         $validated = $request->validate([
             'pickup_point_id' => 'nullable|exists:pickup_points,id',
             'discount_code' => 'nullable|string|max:50',
+            'gift_code' => 'nullable|string|max:50',
             'orders' => 'required|array|min:1',
             'orders.*.weekmenu_id' => 'required|exists:weekmenu,id',
             'orders.*.quantity' => 'required|integer|min:1',
@@ -181,9 +217,10 @@ class ClientHomeController extends Controller
         $user = $request->user();
         $createdOrders = [];
         $discountService = app(DiscountService::class);
+        $giftService = app(GiftService::class);
 
         try {
-            DB::transaction(function () use ($validated, $user, &$createdOrders, $discountService) {
+            DB::transaction(function () use ($validated, $user, &$createdOrders, $discountService, $giftService) {
                 $discount = null;
 
                 if (!empty($validated['discount_code'])) {
@@ -192,6 +229,14 @@ class ClientHomeController extends Controller
                     $discount = $discountService->findValidCode($validated['discount_code'], lockForUpdate: true);
                     $eligibilityCartLines = $this->buildCartLines($validated['orders']);
                     $discountService->checkEligibility($discount, $user, $eligibilityCartLines);
+                }
+
+                $gift = null;
+
+                if (!empty($validated['gift_code'])) {
+                    $gift = $giftService->findValidCode($validated['gift_code'], lockForUpdate: true);
+                    $eligibilityCartLines = $this->buildCartLines($validated['orders']);
+                    $giftService->checkEligibility($gift, $user, $eligibilityCartLines);
                 }
 
                 $finalCartLines = [];
@@ -264,9 +309,54 @@ class ClientHomeController extends Controller
                     $firstCreated = $createdOrders[0];
                     $discountService->redeem($discount, $user, $firstCreated->week, $firstCreated->year, $orderTotalBefore, $result['total_discount']);
                 }
+
+                if ($gift && !empty($finalCartLines)) {
+                    $result = $giftService->calculateGift($gift, $finalCartLines);
+
+                    if ($result['quantity'] > 0) {
+                        // week/year: derive from the non-gift lines created in THIS checkout,
+                        // since a gift line has no weekmenu of its own to derive them from.
+                        $firstNonGiftOrder = $createdOrders[0];
+
+                        $giftRedemption = $giftService->redeem(
+                            $gift, $user, $firstNonGiftOrder->week, $firstNonGiftOrder->year,
+                            $result['qualifying_total'], $result['quantity']
+                        );
+
+                        // Merge into an existing gift line for the same reward item/week
+                        // rather than creating a new row each checkout, so repeat orders
+                        // in the same week show as one combined free line, not several.
+                        $existingGiftOrder = Order::whereNull('weekmenu_id')
+                            ->where('user_id', $user->id)
+                            ->where('menu_id', $gift->reward_menu_id)
+                            ->where('week', $firstNonGiftOrder->week)
+                            ->where('year', $firstNonGiftOrder->year)
+                            ->first();
+
+                        if ($existingGiftOrder) {
+                            $existingGiftOrder->increment('quantity', $result['quantity']);
+                            $createdOrders[] = $existingGiftOrder;
+                        } else {
+                            $createdOrders[] = Order::create([
+                                'user_id' => $user->id,
+                                'weekmenu_id' => null,
+                                'menu_id' => $gift->reward_menu_id,
+                                'group_id' => $user->group_id,
+                                'pickup_point_id' => $validated['pickup_point_id'] ?? null,
+                                'quantity' => $result['quantity'],
+                                'special_price' => 0.00,
+                                'week' => $firstNonGiftOrder->week,
+                                'year' => $firstNonGiftOrder->year,
+                                'gift_redemption_id' => $giftRedemption->id,
+                            ]);
+                        }
+                    }
+                }
             });
         } catch (DiscountNotFoundException|DiscountIneligibleException $e) {
             return back()->withErrors(['discount_code' => $e->userMessage])->withInput();
+        } catch (GiftNotFoundException|GiftIneligibleException $e) {
+            return back()->withErrors(['gift_code' => $e->userMessage])->withInput();
         }
 
         if (empty($createdOrders)) {
@@ -275,7 +365,7 @@ class ClientHomeController extends Controller
 
         $firstOrder = $createdOrders[0];
 
-        $allOrdersForWeek = Order::with(['weekmenu.menu', 'weekmenu.group'])
+        $allOrdersForWeek = Order::with(['weekmenu.menu', 'weekmenu.group', 'menu'])
             ->where('user_id', $user->id)
             ->where('week', $firstOrder->week)
             ->where('year', $firstOrder->year)

@@ -13,7 +13,7 @@ class InvoiceController extends Controller
     public function getByUser($userId)
     {
         $invoices = Invoice::where('user_id', $userId)
-            ->with('invoiceItems.order.weekmenu.menu')
+            ->with(['invoiceItems.order.weekmenu.menu', 'invoiceItems.order.menu'])
             ->orderBy('invoice_date', 'desc')
             ->get()
             ->map(function ($invoice) {
@@ -80,15 +80,17 @@ class InvoiceController extends Controller
     {
         $invoice = Invoice::with([
             'user',
-            'invoiceItems.order.weekmenu.menu'
+            'invoiceItems.order.weekmenu.menu',
+            'invoiceItems.order.menu',
         ])->findOrFail($id);
 
         $items = $invoice->invoiceItems->map(function ($item) {
             return [
-                'menu_label' => $item->order->weekmenu->menu->label,
+                'menu_label' => $item->order->menu_item->label,
                 'quantity' => $item->order->quantity,
                 'price' => $item->order->unitPrice(),
                 'discount' => $item->order->lineDiscount(),
+                'is_gift' => $item->order->is_gift,
                 'total' => $item->order->lineTotal(),
             ];
         });

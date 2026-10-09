@@ -31,7 +31,13 @@ interface Order {
                 label: string;
                 price: number;
             };
+        } | null;
+        menu_item: {
+            id: number;
+            label: string;
+            price: number;
         };
+        is_gift: boolean;
         notes: string | null;
     }>;
     total: number;
@@ -232,14 +238,17 @@ const handleOrderAdded = () => {
                         >
                             <div class="flex justify-between items-center">
                                 <div>
-                                    <div class="font-medium">{{ item.quantity }}× {{ item.weekmenu.menu.label }}</div>
-                                    <div class="text-sm text-muted-foreground">
-                                        {{ item.special_price ? `€${item.special_price.toFixed(2)}` : `€${item.weekmenu.menu.price.toFixed(2)}` }} each
+                                    <div class="font-medium">
+                                        {{ item.quantity }}× {{ item.menu_item.label }}
+                                        <span v-if="item.is_gift" class="ml-1 text-xs font-semibold text-green-700">🎁 FREE</span>
+                                    </div>
+                                    <div v-if="!item.is_gift" class="text-sm text-muted-foreground">
+                                        {{ item.special_price ? `€${item.special_price.toFixed(2)}` : `€${item.menu_item.price.toFixed(2)}` }} each
                                     </div>
                                 </div>
-                                <div class="font-semibold">
-                                    €{{ ((item.special_price ?? item.weekmenu.menu.price) * item.quantity).toFixed(2) }}
-                                </div>    
+                                <div v-if="!item.is_gift" class="font-semibold">
+                                    €{{ ((item.special_price ?? item.menu_item.price) * item.quantity).toFixed(2) }}
+                                </div>
                             </div>
                         </button>
                     </div>

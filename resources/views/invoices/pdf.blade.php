@@ -115,10 +115,14 @@
         <tbody>
             @foreach($items as $item)
             <tr>
-                <td>{{ $item['menu_label'] }}</td>
+                <td>{{ $item['menu_label'] }}@if($item['is_gift']) (gift)@endif</td>
                 <td class="text-right">{{ $item['quantity'] }}</td>
-                <td class="text-right">€{{ number_format($item['price'], 2) }}</td>
-                <td class="text-right">€{{ number_format($item['total'], 2) }}</td>
+                <td class="text-right">
+                    @if($item['is_gift'])FREE@else €{{ number_format($item['price'], 2) }} @endif
+                </td>
+                <td class="text-right">
+                    @if($item['is_gift'])FREE@else €{{ number_format($item['total'], 2) }} @endif
+                </td>
             </tr>
             @endforeach
         </tbody>

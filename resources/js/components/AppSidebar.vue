@@ -13,7 +13,7 @@ import {
 } from '@/components/ui/sidebar';
 import { type NavItem } from '@/types';
 import { Link } from '@inertiajs/vue3';
-import { BookOpen, Folder, LayoutGrid, ListChecksIcon, ListPlusIcon, MailsIcon, MapPinIcon, ReceiptEuro, ShoppingBag, TicketPercent, Users2Icon } from 'lucide-vue-next';
+import { BookOpen, Folder, Gift, LayoutGrid, ListChecksIcon, ListPlusIcon, MailsIcon, MapPinIcon, ReceiptEuro, ShoppingBag, TicketPercent, Users2Icon } from 'lucide-vue-next';
 import AppLogo from './AppLogo.vue';
 
 const mainNavItems: NavItem[] = [
@@ -46,6 +46,11 @@ const mainNavItems: NavItem[] = [
         title: 'Discounts',
         href: '/admin/discounts',
         icon: TicketPercent,
+    },
+    {
+        title: 'Gifts',
+        href: '/admin/gifts',
+        icon: Gift,
     },
 ];
 

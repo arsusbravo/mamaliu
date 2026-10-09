@@ -43,6 +43,7 @@ interface Weekmenu {
 
 interface CartItem {
     weekmenu_id: number;
+    menu_id: number;
     menu_label: string;
     quantity: number;
     price: number;
@@ -65,6 +66,7 @@ interface Props {
     isPreOrder: boolean;
     userPickupPoints: PickupPoint[];
     hasActiveDiscounts: boolean;
+    hasActiveGifts: boolean;
 }
 
 const props = defineProps<Props>();
@@ -87,6 +89,11 @@ const appliedDiscount = ref<{ amount: number } | null>(null);
 const discountError = ref<string | null>(null);
 const applyingDiscount = ref(false);
 
+const giftCode = ref('');
+const appliedGift = ref<{ quantity: number; rewardMenuLabel: string } | null>(null);
+const giftError = ref<string | null>(null);
+const applyingGift = ref(false);
+
 const getCookie = (name: string): string => {
     const match = document.cookie.match(new RegExp('(?:^|; )' + name + '=([^;]*)'));
     return match ? decodeURIComponent(match[1]) : '';
@@ -100,6 +107,7 @@ const addToCart = (weekmenu: Weekmenu, quantity: number) => {
     } else {
         cart.value.push({
             weekmenu_id: weekmenu.id,
+            menu_id: weekmenu.menu.id,
             menu_label: weekmenu.menu.label,
             quantity: quantity,
             price: weekmenu.menu.price,
@@ -137,11 +145,13 @@ const cartCount = computed(() => {
     return cart.value.reduce((sum, item) => sum + item.quantity, 0);
 });
 
-// Clear any applied/attempted discount preview whenever the cart changes, so a stale
-// amount is never shown. The server always recalculates authoritatively on submit anyway.
+// Clear any applied/attempted discount/gift preview whenever the cart changes, so a
+// stale amount is never shown. The server always recalculates authoritatively on submit.
 watch(cart, () => {
     appliedDiscount.value = null;
     discountError.value = null;
+    appliedGift.value = null;
+    giftError.value = null;
 }, { deep: true });
 
 const applyDiscountCode = async () => {
@@ -182,6 +192,44 @@ const applyDiscountCode = async () => {
     }
 };
 
+const applyGiftCode = async () => {
+    if (!giftCode.value.trim()) return;
+
+    applyingGift.value = true;
+    giftError.value = null;
+    appliedGift.value = null;
+
+    try {
+        const response = await fetch('/validate-gift', {
+            method: 'POST',
+            credentials: 'same-origin',
+            headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+                'X-XSRF-TOKEN': getCookie('XSRF-TOKEN'),
+            },
+            body: JSON.stringify({
+                gift_code: giftCode.value.trim(),
+                orders: cart.value.map(item => ({
+                    weekmenu_id: item.weekmenu_id,
+                    quantity: item.quantity,
+                })),
+            }),
+        });
+        const data = await response.json();
+
+        if (data.valid) {
+            appliedGift.value = { quantity: data.quantity, rewardMenuLabel: data.reward_menu_label };
+        } else {
+            giftError.value = data.message || '此贈品碼無效';
+        }
+    } catch (error) {
+        giftError.value = '無法驗證贈品碼，請稍後再試';
+    } finally {
+        applyingGift.value = false;
+    }
+};
+
 const placeOrder = () => {
     if (cart.value.length === 0) {
         alert('您的購物車是空的');
@@ -202,6 +250,7 @@ const placeOrder = () => {
     router.post('/place-order', {
         pickup_point_id: selectedPickupPointId.value,
         discount_code: discountCode.value.trim() || null,
+        gift_code: giftCode.value.trim() || null,
         orders,
     }, {
         onSuccess: () => {
@@ -211,10 +260,16 @@ const placeOrder = () => {
             discountCode.value = '';
             appliedDiscount.value = null;
             discountError.value = null;
+            giftCode.value = '';
+            appliedGift.value = null;
+            giftError.value = null;
         },
         onError: (errors) => {
             if (errors.discount_code) {
                 discountError.value = errors.discount_code;
+            }
+            if (errors.gift_code) {
+                giftError.value = errors.gift_code;
             }
         },
     });
@@ -416,6 +471,31 @@ const selectedImageUrl = computed(() => selectedImage.value || '');
                             <p v-if="discountError" class="text-sm text-red-600 mt-2">{{ discountError }}</p>
                             <p v-if="appliedDiscount" class="text-sm text-green-600 mt-2">
                                 優惠碼已套用：-€{{ appliedDiscount.amount.toFixed(2) }}
+                            </p>
+                        </div>
+
+                        <!-- Gift code (only shown when an active gift currently exists) -->
+                        <div v-if="hasActiveGifts" class="mb-6">
+                            <Label class="text-base font-semibold text-gray-700 mb-2 block">贈品碼</Label>
+                            <div v-if="!appliedGift" class="flex gap-2">
+                                <Input
+                                    v-model="giftCode"
+                                    placeholder="請輸入您的I僑卡號碼"
+                                    class="border-2 border-orange-200 focus:border-orange-400"
+                                    @keydown.enter.prevent="applyGiftCode"
+                                />
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    :disabled="!giftCode.trim() || applyingGift"
+                                    @click="applyGiftCode"
+                                >
+                                    套用
+                                </Button>
+                            </div>
+                            <p v-if="giftError" class="text-sm text-red-600 mt-2">{{ giftError }}</p>
+                            <p v-if="appliedGift" class="text-sm text-green-600 mt-2">
+                                🎁 贈品碼已套用：您將獲得 {{ appliedGift.quantity }}× {{ appliedGift.rewardMenuLabel }} — 免費贈送！
                             </p>
                         </div>
 

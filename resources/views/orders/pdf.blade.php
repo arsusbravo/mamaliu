@@ -46,8 +46,17 @@
                                                 <td style="padding: 3px 0; font-size: 12px;">
                                                     <table width="100%" cellpadding="0" cellspacing="0">
                                                         <tr>
-                                                            <td width="70%">{{ $item->quantity }}× {{ $item->weekmenu->menu->label }}</td>
-                                                            <td width="30%" align="right">€{{ number_format($item->lineTotal(), 2) }}</td>
+                                                            <td width="70%">
+                                                                {{ $item->quantity }}× {{ $item->menu_item->label }}
+                                                                @if($item->is_gift)<span style="color: #0a7d2f;"> (gift)</span>@endif
+                                                            </td>
+                                                            <td width="30%" align="right">
+                                                                @if($item->is_gift)
+                                                                    <span style="color: #0a7d2f;">FREE</span>
+                                                                @else
+                                                                    €{{ number_format($item->lineTotal(), 2) }}
+                                                                @endif
+                                                            </td>
                                                         </tr>
                                                     </table>
                                                 </td>

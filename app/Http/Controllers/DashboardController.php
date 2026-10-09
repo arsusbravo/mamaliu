@@ -19,7 +19,7 @@ class DashboardController extends Controller
         // Stats for current week
         $currentWeekOrders = Order::where('week', $currentWeek)
             ->where('year', $currentYear)
-            ->with(['user', 'weekmenu.menu'])
+            ->with(['user', 'weekmenu.menu', 'menu'])
             ->get();
 
         $totalOrdersThisWeek = $currentWeekOrders->count();
@@ -30,7 +30,7 @@ class DashboardController extends Controller
         $quarterEnd = Carbon::now()->setQuarter($currentQuarter)->endOfQuarter();
         
         $quarterOrders = Order::whereBetween('created_at', [$quarterStart, $quarterEnd])
-            ->with(['weekmenu.menu'])
+            ->with(['weekmenu.menu', 'menu'])
             ->get();
         
         $totalRevenueThisQuarter = $quarterOrders->sum(function ($order) {
@@ -52,7 +52,7 @@ class DashboardController extends Controller
                         ->where('week', '>', $currentWeek);
                 });
         })
-        ->with(['user', 'weekmenu.menu'])
+        ->with(['user', 'weekmenu.menu', 'menu'])
         ->orderBy('year')
         ->orderBy('week')
         ->get()
@@ -103,7 +103,7 @@ class DashboardController extends Controller
 
         // Recent orders grouped by client (last 10 clients with orders this quarter)
         $recentOrdersByClient = Order::whereBetween('created_at', [$quarterStart, $quarterEnd])
-            ->with(['user', 'weekmenu.menu'])
+            ->with(['user', 'weekmenu.menu', 'menu'])
             ->orderBy('created_at', 'desc')
             ->get()
             ->groupBy('user_id')
@@ -133,7 +133,7 @@ class DashboardController extends Controller
         $recentNotes = Order::whereNotNull('notes')
             ->where('notes', '!=', '')
             ->where('created_at', '>=', Carbon::now()->subDays(7))
-            ->with(['user', 'weekmenu.menu'])
+            ->with(['user', 'weekmenu.menu', 'menu'])
             ->orderBy('created_at', 'desc')
             ->limit(5)
             ->get()
@@ -141,7 +141,7 @@ class DashboardController extends Controller
                 return [
                     'client_name' => $order->user->name,
                     'notes' => $order->notes,
-                    'menu_label' => $order->weekmenu->menu->label,
+                    'menu_label' => $order->menu_item->label,
                     'created_at' => $order->created_at->diffForHumans(),
                 ];
             });

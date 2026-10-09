@@ -32,8 +32,9 @@ class OrderConfirmation extends Mailable
         $this->total = collect($orders)->sum(fn ($order) => $order->lineTotal());
         $this->totalDiscount = collect($orders)->sum(fn ($order) => $order->lineDiscount());
 
-        // Get group name from first order (all orders in same week should have same group)
-        $this->groupName = $orders->first()?->weekmenu?->group?->name ?? 'General delivery area';
+        // Get group name from the first non-gift order (gift lines have no weekmenu)
+        $firstRealOrder = collect($orders)->first(fn ($order) => !$order->is_gift) ?? collect($orders)->first();
+        $this->groupName = $firstRealOrder?->weekmenu?->group?->name ?? 'General delivery area';
     }
 
     public function envelope(): Envelope
