@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue';
+import { ref, computed, watch, nextTick } from 'vue';
 import { router, Head } from '@inertiajs/vue3';
 import ClientLayout from '@/layouts/ClientLayout.vue';
 import MenuCard from '@/components/MenuCard.vue';
@@ -66,7 +66,7 @@ interface Props {
     isPreOrder: boolean;
     userPickupPoints: PickupPoint[];
     hasActiveDiscounts: boolean;
-    hasActiveGifts: boolean;
+    giftThreshold: number | null;
 }
 
 const props = defineProps<Props>();
@@ -79,6 +79,26 @@ const cart = ref<CartItem[]>([]);
 const showCart = ref(false);
 const showImageDialog = ref(false);
 const selectedImage = ref<string | null>(null);
+
+interface FlyingItem {
+    id: number;
+    startX: number;
+    startY: number;
+    endX: number;
+    endY: number;
+    imageUrl: string | null;
+}
+
+const flyingItems = ref<FlyingItem[]>([]);
+const cartButtonRef = ref<HTMLElement | null>(null);
+const cartBounce = ref(false);
+let flyingIdCounter = 0;
+
+const removeFlyingItem = (id: number) => {
+    flyingItems.value = flyingItems.value.filter(item => item.id !== id);
+    cartBounce.value = true;
+    setTimeout(() => { cartBounce.value = false; }, 400);
+};
 
 const selectedPickupPointId = ref<number | null>(
     props.userPickupPoints.length > 0 ? props.userPickupPoints[0].id : null
@@ -99,9 +119,9 @@ const getCookie = (name: string): string => {
     return match ? decodeURIComponent(match[1]) : '';
 };
 
-const addToCart = (weekmenu: Weekmenu, quantity: number) => {
+const addToCart = async (weekmenu: Weekmenu, quantity: number, sourceRect?: DOMRect) => {
     const existingItem = cart.value.find(item => item.weekmenu_id === weekmenu.id);
-    
+
     if (existingItem) {
         existingItem.quantity += quantity;
     } else {
@@ -114,6 +134,24 @@ const addToCart = (weekmenu: Weekmenu, quantity: number) => {
             max_quantity: weekmenu.quantity,
             notes: '',
         });
+    }
+
+    if (sourceRect) {
+        // Wait for the floating cart button to mount (it only renders once cartCount > 0,
+        // so on the very first add it doesn't exist until after this tick).
+        await nextTick();
+        const cartEl = cartButtonRef.value;
+        if (cartEl) {
+            const endRect = cartEl.getBoundingClientRect();
+            flyingItems.value.push({
+                id: ++flyingIdCounter,
+                startX: sourceRect.left + sourceRect.width / 2,
+                startY: sourceRect.top + sourceRect.height / 2,
+                endX: endRect.left + endRect.width / 2,
+                endY: endRect.top + endRect.height / 2,
+                imageUrl: weekmenu.menu.has_image ? weekmenu.menu.image_url : null,
+            });
+        }
     }
 };
 
@@ -143,6 +181,12 @@ const cartTotalAfterDiscount = computed(() => Math.max(0, cartTotal.value - disc
 
 const cartCount = computed(() => {
     return cart.value.reduce((sum, item) => sum + item.quantity, 0);
+});
+
+// Only show the gift field once the cart actually reaches the threshold —
+// no point asking for an ID that can't earn anything yet.
+const showGiftField = computed(() => {
+    return props.giftThreshold !== null && cartTotal.value >= props.giftThreshold;
 });
 
 // Clear any applied/attempted discount/gift preview whenever the cart changes, so a
@@ -358,13 +402,36 @@ const selectedImageUrl = computed(() => selectedImage.value || '');
             <!-- Floating Cart Button -->
             <button
                 v-if="cartCount > 0"
+                ref="cartButtonRef"
                 @click="showCart = true"
-                class="fixed bottom-8 right-8 bg-linear-to-r from-red-600 to-orange-500 hover:from-red-700 hover:to-orange-600 text-white rounded-full p-5 shadow-2xl transition-all hover:scale-110 flex items-center gap-3 z-50 group"
+                :class="[
+                    'fixed bottom-8 right-8 bg-linear-to-r from-red-600 to-orange-500 hover:from-red-700 hover:to-orange-600 text-white rounded-full p-5 shadow-2xl transition-all hover:scale-110 flex items-center gap-3 z-50 group',
+                    cartBounce ? 'cart-bounce' : ''
+                ]"
             >
                 <ShoppingCart class="h-7 w-7 group-hover:animate-bounce" />
                 <span class="font-black text-xl">{{ cartCount }}</span>
             </button>
         </div>
+
+        <!-- Fly-to-cart animation -->
+        <Teleport to="body">
+            <div
+                v-for="item in flyingItems"
+                :key="item.id"
+                class="fly-to-cart"
+                :style="{
+                    left: item.startX + 'px',
+                    top: item.startY + 'px',
+                    '--fly-end-x': (item.endX - item.startX) + 'px',
+                    '--fly-end-y': (item.endY - item.startY) + 'px',
+                }"
+                @animationend="removeFlyingItem(item.id)"
+            >
+                <img v-if="item.imageUrl" :src="item.imageUrl" alt="" class="w-full h-full object-cover rounded-full" />
+                <span v-else>🛍️</span>
+            </div>
+        </Teleport>
 
         <!-- Cart Dialog -->
         <Dialog v-model:open="showCart">
@@ -474,8 +541,8 @@ const selectedImageUrl = computed(() => selectedImage.value || '');
                             </p>
                         </div>
 
-                        <!-- Gift code (only shown when an active gift currently exists) -->
-                        <div v-if="hasActiveGifts" class="mb-6">
+                        <!-- Gift code (only shown once the cart reaches the gift's threshold) -->
+                        <div v-if="showGiftField" class="mb-6">
                             <Label class="text-base font-semibold text-gray-700 mb-2 block">贈品碼</Label>
                             <div v-if="!appliedGift" class="flex gap-2">
                                 <Input
@@ -541,3 +608,50 @@ const selectedImageUrl = computed(() => selectedImage.value || '');
         </Dialog>
     </ClientLayout>
 </template>
+
+<style scoped>
+.fly-to-cart {
+    position: fixed;
+    width: 40px;
+    height: 40px;
+    margin-left: -20px;
+    margin-top: -20px;
+    border-radius: 9999px;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 22px;
+    background: white;
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25);
+    pointer-events: none;
+    z-index: 100;
+    animation: fly-to-cart-motion 0.7s cubic-bezier(0.3, 0, 0.6, 1) forwards;
+}
+
+@keyframes fly-to-cart-motion {
+    0% {
+        transform: translate(0, 0) scale(1);
+        opacity: 1;
+    }
+    50% {
+        transform: translate(calc(var(--fly-end-x) * 0.5), calc(var(--fly-end-y) * 0.5 - 70px)) scale(0.85);
+        opacity: 1;
+    }
+    100% {
+        transform: translate(var(--fly-end-x), var(--fly-end-y)) scale(0.2);
+        opacity: 0.3;
+    }
+}
+
+.cart-bounce {
+    animation: cart-bounce-motion 0.4s ease;
+}
+
+@keyframes cart-bounce-motion {
+    0% { transform: scale(1); }
+    30% { transform: scale(1.25); }
+    60% { transform: scale(0.95); }
+    100% { transform: scale(1); }
+}
+</style>

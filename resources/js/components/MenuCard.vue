@@ -46,8 +46,9 @@ const decreaseQuantity = () => {
     }
 };
 
-const addToCart = () => {
-    emit('addToCart', props.weekmenu, selectedQuantity.value);
+const addToCart = (event: MouseEvent) => {
+    const rect = (event.currentTarget as HTMLElement).getBoundingClientRect();
+    emit('addToCart', props.weekmenu, selectedQuantity.value, rect);
     selectedQuantity.value = 1;
 };
 

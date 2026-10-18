@@ -37,6 +37,7 @@ interface Client {
     id: number;
     name: string | null;
     phone: string | null;
+    member_code: string | null;
     username: string | null;
     group_id: number | null;
     active: boolean;
@@ -114,6 +115,7 @@ const emptyClient: Client = {
     id: 0,
     name: null,
     phone: null,
+    member_code: null,
     username: null,
     group_id: null,
     active: true,
@@ -274,12 +276,13 @@ watch(() => page.props.flash, (flash: any) => {
                                 Email
                             </TableHeadSortable>
                             <TableHead>Phone</TableHead>
+                            <TableHead>Member ID</TableHead>
                             <TableHead class="text-right">Actions</TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
                         <TableRow v-if="clients.data.length === 0">
-                            <TableCell colspan="5" class="text-center text-muted-foreground">
+                            <TableCell colspan="6" class="text-center text-muted-foreground">
                                 No clients found. Add your first client to get started.
                             </TableCell>
                         </TableRow>
@@ -287,6 +290,7 @@ watch(() => page.props.flash, (flash: any) => {
                             <TableCell class="font-medium">{{ client.name ?? '-' }}</TableCell>
                             <TableCell>{{ client.username ?? '-' }}</TableCell>
                             <TableCell>{{ client.phone ?? '-' }}</TableCell>
+                            <TableCell class="font-mono text-sm">{{ client.member_code ?? '-' }}</TableCell>
                             <TableCell class="text-right">
                                 <div class="flex justify-end gap-2">
                                     <Button

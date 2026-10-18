@@ -22,6 +22,7 @@ interface Client {
     id: number;
     name: string | null;
     phone: string | null;
+    member_code: string | null;
     username: string | null;
     group_id: number | null;
     active: boolean;
@@ -40,6 +41,7 @@ const emit = defineEmits(['success']);
 const form = useForm({
     name: props.client.name || '',
     phone: props.client.phone || '',
+    member_code: props.client.member_code || '',
     username: props.client.username || '',
     group_id: props.client.group_id ? String(props.client.group_id) : '',
     active: props.client.active,
@@ -52,6 +54,7 @@ const submit = () => {
     const submitData = {
         ...form.data(),
         group_id: form.group_id ? Number(form.group_id) : null,
+        member_code: form.member_code.trim() || null,
     };
     
     form.transform(() => submitData)[submitMethod](props.submitUrl, {
@@ -104,6 +107,20 @@ const submit = () => {
                 />
                 <span v-if="form.errors.phone" class="text-sm text-red-500">
                     {{ form.errors.phone }}
+                </span>
+            </div>
+
+            <div class="grid gap-2">
+                <Label for="member_code">Member ID</Label>
+                <Input
+                    id="member_code"
+                    v-model="form.member_code"
+                    type="text"
+                    :class="{ 'border-red-500': form.errors.member_code }"
+                />
+                <p class="text-xs text-muted-foreground">Optional. Lets this client redeem the active gift by entering this ID at checkout.</p>
+                <span v-if="form.errors.member_code" class="text-sm text-red-500">
+                    {{ form.errors.member_code }}
                 </span>
             </div>
 

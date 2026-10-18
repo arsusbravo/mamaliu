@@ -116,7 +116,7 @@ class ClientHomeController extends Controller
                 ? $user->group->load('pickupPoints')->pickupPoints->map(fn ($p) => ['id' => $p->id, 'name' => $p->name])->values()
                 : [],
             'hasActiveDiscounts' => Discount::currentlyValid()->exists(),
-            'hasActiveGifts' => Gift::currentlyValid()->exists(),
+            'giftThreshold' => Gift::currentlyValid()->first()?->threshold_amount,
         ]);
     }
 
@@ -184,9 +184,9 @@ class ClientHomeController extends Controller
         $giftService = app(GiftService::class);
 
         try {
-            $gift = $giftService->findValidCode($validated['gift_code']);
+            $gift = $giftService->findActiveGift();
             $cartLines = $this->buildCartLines($validated['orders']);
-            $giftService->checkEligibility($gift, $request->user(), $cartLines);
+            $giftService->checkEligibility($gift, $request->user(), $validated['gift_code'], $cartLines);
             $result = $giftService->calculateGift($gift, $cartLines);
 
             return response()->json([
@@ -234,9 +234,9 @@ class ClientHomeController extends Controller
                 $gift = null;
 
                 if (!empty($validated['gift_code'])) {
-                    $gift = $giftService->findValidCode($validated['gift_code'], lockForUpdate: true);
+                    $gift = $giftService->findActiveGift(lockForUpdate: true);
                     $eligibilityCartLines = $this->buildCartLines($validated['orders']);
-                    $giftService->checkEligibility($gift, $user, $eligibilityCartLines);
+                    $giftService->checkEligibility($gift, $user, $validated['gift_code'], $eligibilityCartLines);
                 }
 
                 $finalCartLines = [];

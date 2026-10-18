@@ -8,12 +8,6 @@ use Illuminate\Support\Carbon;
 class Gift extends Model
 {
     protected $fillable = [
-        'name',
-        'code',
-        'description',
-        'target_type',
-        'user_id',
-        'group_id',
         'threshold_amount',
         'reward_menu_id',
         'valid_from',
@@ -28,24 +22,9 @@ class Gift extends Model
         'active' => 'boolean',
     ];
 
-    public function user()
-    {
-        return $this->belongsTo(User::class);
-    }
-
-    public function group()
-    {
-        return $this->belongsTo(Group::class);
-    }
-
     public function rewardMenu()
     {
         return $this->belongsTo(Menu::class, 'reward_menu_id');
-    }
-
-    public function qualifyingItems()
-    {
-        return $this->belongsToMany(Menu::class, 'gift_qualifying_items', 'gift_id', 'menu_id');
     }
 
     public function redemptions()

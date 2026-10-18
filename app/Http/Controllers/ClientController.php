@@ -64,6 +64,7 @@ class ClientController extends Controller
             'name' => 'required|string|max:255',
             'username' => 'required|email|unique:users,username',
             'phone' => 'nullable|string|max:20',
+            'member_code' => 'nullable|string|max:50|unique:users,member_code',
             'group_id' => 'required|exists:groups,id',
             'active' => 'required|boolean',
             'password' => 'required|string|min:8',
@@ -71,6 +72,7 @@ class ClientController extends Controller
 
         $validated['usertype'] = UserType::CLIENT;
         $validated['password'] = bcrypt($validated['password']);
+        $validated['member_code'] = $validated['member_code'] ?: null;
 
         User::create($validated);
 
@@ -84,6 +86,7 @@ class ClientController extends Controller
             'name' => 'required|string|max:255',
             'username' => 'required|email|unique:users,username,' . $client->id,
             'phone' => 'nullable|string|max:20',
+            'member_code' => 'nullable|string|max:50|unique:users,member_code,' . $client->id,
             'group_id' => 'required|exists:groups,id',
             'active' => 'required|boolean',
             'password' => 'nullable|string|min:8',
@@ -94,6 +97,7 @@ class ClientController extends Controller
         } else {
             unset($validated['password']);
         }
+        $validated['member_code'] = $validated['member_code'] ?: null;
 
         $client->update($validated);
 

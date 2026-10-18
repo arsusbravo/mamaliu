@@ -4,9 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { DialogFooter, DialogClose } from '@/components/ui/dialog';
-import ClientSelector from '@/components/ClientSelector.vue';
 import MenuSelector from '@/components/MenuSelector.vue';
-import MenuMultiSelector from '@/components/MenuMultiSelector.vue';
 
 interface Menu {
     id: number;
@@ -16,20 +14,8 @@ interface Menu {
     has_image: boolean;
 }
 
-interface Group {
-    id: number;
-    name: string;
-}
-
 interface Gift {
     id: number;
-    name: string | null;
-    code: string | null;
-    description: string | null;
-    target_type: 'general' | 'user' | 'group' | 'items';
-    user_id: number | null;
-    group_id: number | null;
-    qualifying_items?: Menu[];
     threshold_amount: number | null;
     reward_menu_id: number | null;
     valid_from: string | null;
@@ -42,20 +28,12 @@ interface Props {
     submitUrl: string;
     method: 'post' | 'put';
     menus: Menu[];
-    groups: Group[];
 }
 
 const props = defineProps<Props>();
 const emit = defineEmits(['success']);
 
 const form = useForm({
-    name: props.gift.name || '',
-    code: props.gift.code || '',
-    description: props.gift.description || '',
-    target_type: props.gift.target_type || 'general',
-    user_id: props.gift.user_id,
-    group_id: props.gift.group_id,
-    qualifying_menu_ids: (props.gift.qualifying_items || []).map(m => m.id),
     threshold_amount: props.gift.threshold_amount,
     reward_menu_id: props.gift.reward_menu_id ? String(props.gift.reward_menu_id) : '',
     valid_from: props.gift.valid_from ? props.gift.valid_from.slice(0, 10) : '',
@@ -81,75 +59,6 @@ const submit = () => {
 
 <template>
     <form @submit.prevent="submit" class="space-y-4">
-        <div class="grid grid-cols-2 gap-4">
-            <div class="grid gap-2">
-                <Label for="name">Name *</Label>
-                <Input
-                    id="name"
-                    v-model="form.name"
-                    type="text"
-                    required
-                    :class="{ 'border-red-500': form.errors.name }"
-                />
-                <span v-if="form.errors.name" class="text-sm text-red-500">{{ form.errors.name }}</span>
-            </div>
-
-            <div class="grid gap-2">
-                <Label for="code">Code *</Label>
-                <Input
-                    id="code"
-                    v-model="form.code"
-                    type="text"
-                    required
-                    :class="{ 'border-red-500': form.errors.code }"
-                />
-                <span v-if="form.errors.code" class="text-sm text-red-500">{{ form.errors.code }}</span>
-            </div>
-        </div>
-
-        <div class="grid gap-2">
-            <Label for="description">Description</Label>
-            <Input id="description" v-model="form.description" type="text" />
-        </div>
-
-        <div class="grid gap-2">
-            <Label for="target_type">Applies to *</Label>
-            <select
-                id="target_type"
-                v-model="form.target_type"
-                class="h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-            >
-                <option value="general">Anyone (whole order)</option>
-                <option value="user">A specific client</option>
-                <option value="group">A specific group</option>
-                <option value="items">Specific item(s)</option>
-            </select>
-        </div>
-
-        <div v-if="form.target_type === 'user'" class="grid gap-2">
-            <Label>Client *</Label>
-            <ClientSelector v-model="form.user_id" :error="form.errors.user_id" />
-        </div>
-
-        <div v-if="form.target_type === 'group'" class="grid gap-2">
-            <Label for="group_id">Group *</Label>
-            <select
-                id="group_id"
-                v-model.number="form.group_id"
-                class="h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                :class="{ 'border-red-500': form.errors.group_id }"
-            >
-                <option :value="null">Select a group</option>
-                <option v-for="group in groups" :key="group.id" :value="group.id">{{ group.name }}</option>
-            </select>
-            <span v-if="form.errors.group_id" class="text-sm text-red-500">{{ form.errors.group_id }}</span>
-        </div>
-
-        <div v-if="form.target_type === 'items'" class="grid gap-2">
-            <Label>Qualifying item(s) *</Label>
-            <MenuMultiSelector :menus="menus" v-model="form.qualifying_menu_ids" :error="form.errors.qualifying_menu_ids" />
-        </div>
-
         <div class="grid gap-2">
             <Label for="threshold_amount">Order total threshold (€) *</Label>
             <Input

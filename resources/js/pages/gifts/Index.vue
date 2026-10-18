@@ -6,7 +6,6 @@ import { type BreadcrumbItem } from '@/types';
 import { Head } from '@inertiajs/vue3';
 import FormGift from '@/components/FormGift.vue';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import {
     Dialog,
     DialogContent,
@@ -25,7 +24,6 @@ import {
 import Toast from '@/components/ui/toast/Toast.vue';
 import { usePage } from '@inertiajs/vue3';
 import { useForm } from '@inertiajs/vue3';
-import { Search } from 'lucide-vue-next';
 
 interface Menu {
     id: number;
@@ -35,27 +33,8 @@ interface Menu {
     has_image: boolean;
 }
 
-interface Group {
-    id: number;
-    name: string;
-}
-
-interface User {
-    id: number;
-    name: string;
-}
-
 interface Gift {
     id: number;
-    name: string;
-    code: string;
-    description: string | null;
-    target_type: 'general' | 'user' | 'group' | 'items';
-    user: User | null;
-    group: Group | null;
-    user_id: number | null;
-    group_id: number | null;
-    qualifying_items: Menu[];
     threshold_amount: number;
     reward_menu_id: number | null;
     reward_menu: Menu | null;
@@ -80,10 +59,6 @@ interface Props {
         links: PaginationLink[];
     };
     menus?: Menu[];
-    groups?: Group[];
-    filters?: {
-        search?: string;
-    };
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -96,10 +71,6 @@ const props = withDefaults(defineProps<Props>(), {
         links: [],
     }),
     menus: () => [],
-    groups: () => [],
-    filters: () => ({
-        search: '',
-    }),
 });
 
 const breadcrumbs: BreadcrumbItem[] = [
@@ -117,20 +88,8 @@ const showEditDialog = ref(false);
 const showDeleteDialog = ref(false);
 const selectedGift = ref<Gift | null>(null);
 
-const searchQuery = ref(props.filters?.search || '');
-let searchTimeout: ReturnType<typeof setTimeout>;
-
 const emptyGift: Gift = {
     id: 0,
-    name: '',
-    code: '',
-    description: null,
-    target_type: 'general',
-    user: null,
-    group: null,
-    user_id: null,
-    group_id: null,
-    qualifying_items: [],
     threshold_amount: null as unknown as number,
     reward_menu_id: null,
     reward_menu: null,
@@ -156,27 +115,6 @@ const submitDelete = () => {
 
 const goToPage = (url: string | null) => {
     if (url) router.visit(url);
-};
-
-const handleSearch = () => {
-    clearTimeout(searchTimeout);
-    searchTimeout = setTimeout(() => {
-        router.get('/admin/gifts', { search: searchQuery.value }, {
-            preserveState: true,
-            preserveScroll: true,
-        });
-    }, 300);
-};
-
-const targetLabel = (gift: Gift): string => {
-    switch (gift.target_type) {
-        case 'user': return gift.user ? `Client: ${gift.user.name}` : 'A specific client';
-        case 'group': return gift.group ? `Group: ${gift.group.name}` : 'A specific group';
-        case 'items': return gift.qualifying_items?.length
-            ? `Items: ${gift.qualifying_items.map(m => m.label).join(', ')}`
-            : 'Specific item(s)';
-        default: return 'Anyone';
-    }
 };
 
 const formatDate = (dateString: string | null): string => {
@@ -223,24 +161,15 @@ watch(() => page.props.flash, (flash: any) => {
                 <Button @click="openAddDialog">Add Gift</Button>
             </div>
 
-            <div class="relative max-w-sm">
-                <Search class="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                <Input
-                    v-model="searchQuery"
-                    @input="handleSearch"
-                    type="search"
-                    placeholder="Search by name or description..."
-                    class="pl-9"
-                />
-            </div>
+            <p class="text-sm text-muted-foreground">
+                Clients with a membership ID assigned (in Clients) receive this gift automatically when they
+                enter their ID at checkout and their order meets the threshold.
+            </p>
 
             <div class="rounded-md border">
                 <Table>
                     <TableHeader>
                         <TableRow>
-                            <TableHead>Name</TableHead>
-                            <TableHead>Code</TableHead>
-                            <TableHead>Applies to</TableHead>
                             <TableHead>Threshold</TableHead>
                             <TableHead>Reward item</TableHead>
                             <TableHead>Valid</TableHead>
@@ -250,16 +179,11 @@ watch(() => page.props.flash, (flash: any) => {
                     </TableHeader>
                     <TableBody>
                         <TableRow v-if="gifts.data.length === 0">
-                            <TableCell colspan="8" class="text-center text-muted-foreground">
-                                No gift rules found. Add your first one to get started.
+                            <TableCell colspan="5" class="text-center text-muted-foreground">
+                                No gifts found. Add one to get started.
                             </TableCell>
                         </TableRow>
                         <TableRow v-for="gift in gifts.data" :key="gift.id">
-                            <TableCell class="font-medium">{{ gift.name }}</TableCell>
-                            <TableCell class="font-mono">{{ gift.code }}</TableCell>
-                            <TableCell class="text-sm text-muted-foreground max-w-[220px] truncate" :title="targetLabel(gift)">
-                                {{ targetLabel(gift) }}
-                            </TableCell>
                             <TableCell class="text-sm">€{{ Number(gift.threshold_amount).toFixed(2) }}</TableCell>
                             <TableCell class="text-sm">{{ gift.reward_menu?.label ?? '—' }}</TableCell>
                             <TableCell class="text-xs text-muted-foreground">
@@ -314,7 +238,7 @@ watch(() => page.props.flash, (flash: any) => {
                 <DialogContent class="max-w-2xl max-h-[90vh] overflow-y-auto">
                     <DialogHeader>
                         <DialogTitle>Add New Gift</DialogTitle>
-                        <DialogDescription>Create a new automatic gift rule.</DialogDescription>
+                        <DialogDescription>Create a new gift for members to redeem.</DialogDescription>
                     </DialogHeader>
 
                     <FormGift
@@ -322,7 +246,6 @@ watch(() => page.props.flash, (flash: any) => {
                         submit-url="/admin/gifts"
                         method="post"
                         :menus="menus"
-                        :groups="groups"
                         @success="handleFormSuccess"
                     />
                 </DialogContent>
@@ -332,7 +255,7 @@ watch(() => page.props.flash, (flash: any) => {
                 <DialogContent class="max-w-2xl max-h-[90vh] overflow-y-auto">
                     <DialogHeader>
                         <DialogTitle>Edit Gift</DialogTitle>
-                        <DialogDescription>Update the gift rule.</DialogDescription>
+                        <DialogDescription>Update the gift.</DialogDescription>
                     </DialogHeader>
 
                     <FormGift
@@ -341,7 +264,6 @@ watch(() => page.props.flash, (flash: any) => {
                         :submit-url="`/admin/gifts/${selectedGift.id}`"
                         method="put"
                         :menus="menus"
-                        :groups="groups"
                         @success="handleFormSuccess"
                     />
                 </DialogContent>
@@ -352,7 +274,8 @@ watch(() => page.props.flash, (flash: any) => {
                     <DialogHeader class="space-y-3">
                         <DialogTitle>Delete Gift</DialogTitle>
                         <DialogDescription>
-                            Are you sure you want to delete <strong>{{ selectedGift?.name }}</strong>? This action cannot be undone.
+                            Are you sure you want to delete the gift rewarding
+                            <strong>{{ selectedGift?.reward_menu?.label }}</strong>? This action cannot be undone.
                         </DialogDescription>
                     </DialogHeader>
 
