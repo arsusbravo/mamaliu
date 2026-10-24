@@ -47,27 +47,39 @@ const imagePreview = ref<string | null>(
     props.menu.image_url || null
 );
 const hasOriginalImage = ref(props.menu.has_image);
+// Browsers can't render HEIC/HEIF in an <img> tag, so for those we show the
+// filename instead of a broken-image icon once one is selected.
+const selectedFileName = ref<string | null>(null);
 
 const handleImageChange = (event: Event) => {
     const target = event.target as HTMLInputElement;
     const file = target.files?.[0];
-    
+
     if (file) {
         form.image = file;
         form.delete_image = false;
-        imagePreview.value = URL.createObjectURL(file);
+
+        const isHeic = /\.(heic|heif)$/i.test(file.name) || /hei[cf]/i.test(file.type);
+        if (isHeic) {
+            imagePreview.value = null;
+            selectedFileName.value = file.name;
+        } else {
+            imagePreview.value = URL.createObjectURL(file);
+            selectedFileName.value = null;
+        }
     }
 };
 
 const removeImage = () => {
     form.image = null;
     imagePreview.value = null;
-    
+    selectedFileName.value = null;
+
     // Mark for deletion if editing and has original image
     if (props.method === 'put' && hasOriginalImage.value) {
         form.delete_image = true;
     }
-    
+
     const input = document.getElementById('image') as HTMLInputElement;
     if (input) input.value = '';
 };
@@ -81,6 +93,7 @@ const submit = () => {
             emit('success');
             form.reset();
             imagePreview.value = null;
+            selectedFileName.value = null;
         },
     });
 };
@@ -169,6 +182,21 @@ const submit = () => {
                     <p class="text-xs text-muted-foreground">Click the X button to remove or upload a new image to replace</p>
                 </div>
 
+                <!-- Fallback for formats the browser can't preview inline (e.g. iPhone HEIC photos) -->
+                <div v-else-if="selectedFileName" class="space-y-2">
+                    <div class="relative w-full max-w-md rounded-lg border bg-gray-50 p-4 flex items-center justify-between gap-3">
+                        <span class="text-sm text-gray-700 truncate">{{ selectedFileName }}</span>
+                        <button
+                            type="button"
+                            @click="removeImage"
+                            class="shrink-0 bg-red-500 text-white rounded-full p-2 hover:bg-red-600 shadow-lg"
+                        >
+                            <X class="h-4 w-4" />
+                        </button>
+                    </div>
+                    <p class="text-xs text-muted-foreground">Preview isn't available for this format, but it will still upload normally.</p>
+                </div>
+
                 <!-- Upload Button -->
                 <div class="flex items-center justify-center w-full">
                     <label
@@ -180,13 +208,13 @@ const submit = () => {
                             <p class="mb-2 text-sm text-gray-500">
                                 <span class="font-semibold">Click to {{ imagePreview ? 'replace' : 'upload' }}</span> or drag and drop
                             </p>
-                            <p class="text-xs text-gray-500">JPG, PNG up to 5MB (will be resized to fit 800x600)</p>
+                            <p class="text-xs text-gray-500">JPG, PNG, or iPhone photos (HEIC) up to 5MB (will be resized to fit 800x600)</p>
                         </div>
                         <input
                             id="image"
                             type="file"
                             class="hidden"
-                            accept="image/jpeg,image/jpg,image/png"
+                            accept="image/*,.heic,.heif"
                             @change="handleImageChange"
                         />
                     </label>

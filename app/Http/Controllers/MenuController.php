@@ -4,9 +4,11 @@ namespace App\Http\Controllers;
 
 use App\Models\Menu;
 use Illuminate\Http\Request;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 use Intervention\Image\ImageManager;
-use Intervention\Image\Drivers\Gd\Driver;
+use Intervention\Image\Drivers\Gd\Driver as GdDriver;
+use Intervention\Image\Drivers\Imagick\Driver as ImagickDriver;
 
 class MenuController extends Controller
 {
@@ -53,8 +55,14 @@ class MenuController extends Controller
             'description' => 'nullable|string',
             'price' => 'required|numeric|min:0',
             'menutype' => 'required|in:normal,menuset',
-            'image' => 'nullable|image|max:5120', // 5MB max
+            // Not Laravel's 'image' rule: that rule's internal mime list doesn't
+            // include HEIC/HEIF, which is the default format for iPhone photos.
+            'image' => 'nullable|file|max:5120|mimes:jpeg,jpg,png,gif,webp,heic,heif',
         ]);
+
+        if ($request->hasFile('image') && ($error = $this->unsupportedImageError($request->file('image')))) {
+            return back()->withErrors(['image' => $error])->withInput();
+        }
 
         $menu = Menu::create($validated);
 
@@ -74,9 +82,13 @@ class MenuController extends Controller
             'description' => 'nullable|string',
             'price' => 'required|numeric|min:0',
             'menutype' => 'required|in:normal,menuset',
-            'image' => 'nullable|image|max:5120',
+            'image' => 'nullable|file|max:5120|mimes:jpeg,jpg,png,gif,webp,heic,heif',
             'delete_image' => 'nullable|boolean',
         ]);
+
+        if ($request->hasFile('image') && ($error = $this->unsupportedImageError($request->file('image')))) {
+            return back()->withErrors(['image' => $error])->withInput();
+        }
 
         // Delete image if requested
         if ($request->boolean('delete_image')) {
@@ -114,14 +126,61 @@ class MenuController extends Controller
         return inertia('menus/Show', ['id' => $id]);
     }
 
+    private function isHeicUpload(UploadedFile $file): bool
+    {
+        $extension = strtolower($file->getClientOriginalExtension());
+        $mime = strtolower((string) $file->getMimeType());
+
+        return in_array($extension, ['heic', 'heif'], true) || str_contains($mime, 'hei');
+    }
+
+    /**
+     * GD (the default driver) can't decode HEIC/HEIF at all. Imagick can, but
+     * only when it was compiled with libheif support, which isn't guaranteed
+     * on every server. Return a friendly error if we're about to fail.
+     */
+    private function unsupportedImageError(UploadedFile $file): ?string
+    {
+        if (!$this->isHeicUpload($file)) {
+            return null;
+        }
+
+        if ($this->imagickSupportsHeic()) {
+            return null;
+        }
+
+        return 'This server can\'t process iPhone (HEIC) photos right now. Please switch your camera to "Most Compatible" format (Settings > Camera > Formats on your iPhone) and retake the photo, or upload a JPG/PNG instead.';
+    }
+
+    private function imagickSupportsHeic(): bool
+    {
+        if (!extension_loaded('imagick')) {
+            return false;
+        }
+
+        try {
+            return in_array('HEIC', (new \Imagick())->queryFormats('HEI*'), true);
+        } catch (\Throwable $e) {
+            return false;
+        }
+    }
+
+    private function imageManager(): ImageManager
+    {
+        // Imagick is a strict superset of GD for our purposes (and is required
+        // for HEIC support), so prefer it whenever it's installed.
+        $driver = extension_loaded('imagick') ? new ImagickDriver() : new GdDriver();
+
+        return new ImageManager($driver);
+    }
+
     /**
      * Save and resize image to fit within 800x600
      */
     private function saveAndResizeImage($file, $menuId)
     {
-        // Create image manager with GD driver
-        $manager = new ImageManager(new Driver());
-        
+        $manager = $this->imageManager();
+
         // Read image from uploaded file
         $image = $manager->read($file->getRealPath());
 
