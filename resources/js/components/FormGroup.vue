@@ -60,14 +60,26 @@ const submit = () => {
 // Pick-up points
 const newPickupPointName = ref('');
 
+// The server redirect-back after a create/delete re-sends a fresh `groups`
+// page prop with real database ids. Syncing from that (instead of guessing
+// an id client-side) is what makes a just-added point deletable right away.
+const syncPickupPoints = (page: { props: Record<string, unknown> }) => {
+    const groups = page.props.groups as { data: Group[] } | undefined;
+    const freshGroup = groups?.data.find((g) => g.id === props.group.id);
+    if (freshGroup) {
+        props.group.pickup_points = freshGroup.pickup_points;
+    }
+};
+
 const addPickupPoint = () => {
     const name = newPickupPointName.value.trim();
     if (!name) return;
 
     router.post(`/admin/groups/${props.group.id}/pickup-points`, { name }, {
         preserveScroll: true,
-        onSuccess: () => {
+        onSuccess: (page) => {
             newPickupPointName.value = '';
+            syncPickupPoints(page);
         },
     });
 };
@@ -75,6 +87,9 @@ const addPickupPoint = () => {
 const deletePickupPoint = (pickupPointId: number) => {
     router.delete(`/admin/groups/${props.group.id}/pickup-points/${pickupPointId}`, {
         preserveScroll: true,
+        onSuccess: (page) => {
+            syncPickupPoints(page);
+        },
     });
 };
 </script>

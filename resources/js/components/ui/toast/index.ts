@@ -27,7 +27,7 @@ export const toastVariants = cva(
 )
 
 export const toastPositionVariants = cva(
-  "fixed z-50",
+  "fixed z-[9999]",
   {
     variants: {
       position: {

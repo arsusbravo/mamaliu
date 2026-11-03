@@ -43,14 +43,14 @@ const mainNavItems: NavItem[] = [
         icon: Users2Icon,
     },
     {
-        title: 'Discounts',
-        href: '/admin/discounts',
-        icon: TicketPercent,
+        title: 'Groups',
+        href: '/admin/groups',
+        icon: MapPinIcon,
     },
     {
-        title: 'Gifts',
-        href: '/admin/gifts',
-        icon: Gift,
+        title: 'Registration invites',
+        href: '/admin/invites',
+        icon: Users2Icon,
     },
 ];
 
@@ -61,14 +61,14 @@ const footerNavItems: NavItem[] = [
         icon: ShoppingBag,
     },
     {
-        title: 'Groups',
-        href: '/admin/groups',
-        icon: MapPinIcon,
+        title: 'Discounts',
+        href: '/admin/discounts',
+        icon: TicketPercent,
     },
     {
-        title: 'Registration invites',
-        href: '/admin/invites',
-        icon: Users2Icon,
+        title: 'Gifts',
+        href: '/admin/gifts',
+        icon: Gift,
     },
 ];
 </script>
