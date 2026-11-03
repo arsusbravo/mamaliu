@@ -117,7 +117,32 @@ class ClientHomeController extends Controller
                 : [],
             'hasActiveDiscounts' => Discount::currentlyValid()->exists(),
             'giftThreshold' => Gift::currentlyValid()->first()?->threshold_amount,
+            'defaultPickupPointId' => $this->lastPickupPointId($user, $currentWeek, $currentYear),
         ]);
+    }
+
+    /**
+     * The pickup point to preselect for this client: whichever one they used
+     * for this same week already, or (if this is their first order this
+     * week) whichever they used most recently overall.
+     */
+    private function lastPickupPointId($user, int $week, int $year): ?int
+    {
+        $thisWeek = Order::where('user_id', $user->id)
+            ->where('week', $week)
+            ->where('year', $year)
+            ->whereNotNull('pickup_point_id')
+            ->latest('created_at')
+            ->value('pickup_point_id');
+
+        if ($thisWeek) {
+            return $thisWeek;
+        }
+
+        return Order::where('user_id', $user->id)
+            ->whereNotNull('pickup_point_id')
+            ->latest('created_at')
+            ->value('pickup_point_id');
     }
 
     /**
@@ -351,6 +376,22 @@ class ClientHomeController extends Controller
                             ]);
                         }
                     }
+                }
+
+                // Pickup point is a per-client, per-week choice, not a per-line
+                // one: if the client changed it this checkout, every order they
+                // already have for the same week(s) should move with it too, not
+                // just the lines touched in this particular request.
+                if (!empty($validated['pickup_point_id'])) {
+                    collect($createdOrders)
+                        ->map(fn ($order) => ['week' => $order->week, 'year' => $order->year])
+                        ->unique(fn ($pair) => $pair['week'] . '-' . $pair['year'])
+                        ->each(function ($pair) use ($user, $validated) {
+                            Order::where('user_id', $user->id)
+                                ->where('week', $pair['week'])
+                                ->where('year', $pair['year'])
+                                ->update(['pickup_point_id' => $validated['pickup_point_id']]);
+                        });
                 }
             });
         } catch (DiscountNotFoundException|DiscountIneligibleException $e) {

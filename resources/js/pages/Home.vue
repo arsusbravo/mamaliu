@@ -67,6 +67,7 @@ interface Props {
     userPickupPoints: PickupPoint[];
     hasActiveDiscounts: boolean;
     giftThreshold: number | null;
+    defaultPickupPointId: number | null;
 }
 
 const props = defineProps<Props>();
@@ -100,9 +101,22 @@ const removeFlyingItem = (id: number) => {
     setTimeout(() => { cartBounce.value = false; }, 400);
 };
 
-const selectedPickupPointId = ref<number | null>(
-    props.userPickupPoints.length > 0 ? props.userPickupPoints[0].id : null
-);
+// Default to wherever the client picked up last time (this week if they've
+// already ordered this week, otherwise their most recent order overall),
+// falling back to the group's first pickup point if they have no history yet
+// or their last pickup point no longer belongs to their current group.
+const defaultPickupPointId = () => {
+    const lastUsedStillValid = props.defaultPickupPointId !== null
+        && props.userPickupPoints.some(p => p.id === props.defaultPickupPointId);
+
+    if (lastUsedStillValid) {
+        return props.defaultPickupPointId;
+    }
+
+    return props.userPickupPoints.length > 0 ? props.userPickupPoints[0].id : null;
+};
+
+const selectedPickupPointId = ref<number | null>(defaultPickupPointId());
 
 const discountCode = ref('');
 const appliedDiscount = ref<{ amount: number } | null>(null);
@@ -300,7 +314,7 @@ const placeOrder = () => {
         onSuccess: () => {
             cart.value = [];
             showCart.value = false;
-            selectedPickupPointId.value = props.userPickupPoints.length > 0 ? props.userPickupPoints[0].id : null;
+            selectedPickupPointId.value = defaultPickupPointId();
             discountCode.value = '';
             appliedDiscount.value = null;
             discountError.value = null;

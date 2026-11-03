@@ -39,14 +39,15 @@ interface User {
     name: string;
 }
 
-interface Group {
+interface PickupPoint {
     id: number;
     name: string;
 }
 
-interface PickupPoint {
+interface Group {
     id: number;
     name: string;
+    pickup_points?: PickupPoint[];
 }
 
 interface Order {
@@ -59,6 +60,7 @@ interface Order {
     menu_item: Menu;
     is_gift: boolean;
     pickup_point: PickupPoint | null;
+    pickup_point_id: number | null;
     week: number;
     year: number;
 }

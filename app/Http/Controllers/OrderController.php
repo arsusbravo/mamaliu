@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Order;
 use App\Models\Menu;
 use App\Models\Group;
+use App\Models\PickupPoint;
 use App\Models\Weekmenu;
 use App\Models\User;
 use Illuminate\Http\Request;
@@ -71,7 +72,7 @@ class OrderController extends Controller
         })->values();
 
         $menus = Menu::orderBy('label')->get();
-        $groups = Group::where('active', true)->orderBy('name')->get();
+        $groups = Group::where('active', true)->orderBy('name')->with('pickupPoints')->get();
 
         return inertia('orders/Index', [
             'groupedOrders' => $groupedOrders,
@@ -532,6 +533,33 @@ class OrderController extends Controller
                 $order->save();
             }
         }
+
+        return redirect()->back();
+    }
+
+    public function updatePickupPoint(Request $request, $userId)
+    {
+        $validated = $request->validate([
+            'pickup_point_id' => 'nullable|exists:pickup_points,id',
+            'week' => 'required|integer',
+            'year' => 'required|integer',
+        ]);
+
+        if (!empty($validated['pickup_point_id'])) {
+            $user = User::findOrFail($userId);
+            $belongsToGroup = PickupPoint::where('id', $validated['pickup_point_id'])
+                ->where('group_id', $user->group_id)
+                ->exists();
+
+            if (!$belongsToGroup) {
+                return back()->withErrors(['pickup_point_id' => 'This pick-up point does not belong to the client\'s group.']);
+            }
+        }
+
+        Order::where('user_id', $userId)
+            ->where('week', $validated['week'])
+            ->where('year', $validated['year'])
+            ->update(['pickup_point_id' => $validated['pickup_point_id']]);
 
         return redirect()->back();
     }

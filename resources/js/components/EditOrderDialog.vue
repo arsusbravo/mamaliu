@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from 'vue';
+import { computed, ref, watch } from 'vue';
 import { useForm, router } from '@inertiajs/vue3';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -39,16 +39,22 @@ interface Order {
         };
         is_gift: boolean;
         notes: string | null;
+        pickup_point_id: number | null;
     }>;
     total: number;
     order_date: string;
+}
+
+interface PickupPoint {
+    id: number;
+    name: string;
 }
 
 interface Props {
     order: Order;
     open: boolean;
     menus: any[];
-    groups: any[];
+    groups: Array<{ id: number; name: string; pickup_points?: PickupPoint[] }>;
 }
 
 const props = defineProps<Props>();
@@ -84,6 +90,39 @@ const handleChangeClient = () => {
         onError: (errors) => {
             console.error('Change client errors:', errors);
         }
+    });
+};
+
+// Pickup Point Form (applies to every order this client has this week)
+const pickupPointForm = useForm({
+    pickup_point_id: null as number | null,
+    week: null as number | null,
+    year: null as number | null,
+});
+
+const resetPickupPointForm = () => {
+    pickupPointForm.pickup_point_id = props.order.orders[0]?.pickup_point_id ?? null;
+    pickupPointForm.week = props.order.orders[0]?.week ?? null;
+    pickupPointForm.year = props.order.orders[0]?.year ?? null;
+};
+resetPickupPointForm();
+
+// EditOrderDialog is a persistent instance reused across different clients
+// (see orders/Index.vue's v-if="editingOrder" with no :key), so local form
+// state must be reset explicitly whenever the `order` prop changes.
+watch(() => props.order, resetPickupPointForm);
+
+const availablePickupPoints = computed(() => {
+    const group = props.groups.find((g) => g.id === props.order.group?.id);
+    return group?.pickup_points ?? [];
+});
+
+const handleUpdatePickupPoint = () => {
+    pickupPointForm.post(`/admin/orders/update-pickup-point/${props.order.user.id}`, {
+        preserveScroll: true,
+        onSuccess: () => {
+            emit('success');
+        },
     });
 };
 
@@ -221,6 +260,29 @@ const handleOrderAdded = () => {
             
             <!-- Tab 2: Edit Quantities -->
             <div v-if="activeTab === 'edit-quantities'" class="space-y-4 mt-4">
+                <div class="space-y-2 p-4 border rounded-lg bg-blue-50">
+                    <Label for="pickup_point" class="mb-2">Pick-up Point (whole week)</Label>
+                    <select
+                        id="pickup_point"
+                        v-model="pickupPointForm.pickup_point_id"
+                        class="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm"
+                    >
+                        <option :value="null">No specific pick-up point</option>
+                        <option v-for="point in availablePickupPoints" :key="point.id" :value="point.id">
+                            {{ point.name }}
+                        </option>
+                    </select>
+                    <p v-if="pickupPointForm.errors.pickup_point_id" class="text-sm text-red-500">
+                        {{ pickupPointForm.errors.pickup_point_id }}
+                    </p>
+                    <p class="text-xs text-muted-foreground">
+                        Changes the pick-up point for all of {{ order.user.name }}'s orders in week {{ order.orders[0]?.week }}/{{ order.orders[0]?.year }}.
+                    </p>
+                    <Button @click="handleUpdatePickupPoint" size="sm" class="w-full">
+                        Update Pick-up Point
+                    </Button>
+                </div>
+
                 <div>
                     <Label>Select Order to Edit</Label>
                     <div class="space-y-2 mt-2">
