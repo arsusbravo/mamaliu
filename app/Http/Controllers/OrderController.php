@@ -118,7 +118,7 @@ class OrderController extends Controller
 
         $menus = $orders->map(fn ($o) => $o->menu_item)->unique('id')->sortBy('label')->values();
 
-        $headings = ['Name'];
+        $headings = ['Nr.', 'Name'];
         foreach ($menus as $menu) {
             $headings[] = $menu->label;
         }
@@ -167,8 +167,8 @@ class OrderController extends Controller
                 return $row;
             })->values();
 
-            foreach ($userRows as $row) {
-                $rowData = [$row['name']];
+            foreach ($userRows as $nr =>$row) {
+                $rowData = [$nr+1,$row['name']];
                 foreach ($menus as $menu) {
                     $rowData[] = $row['menu_' . $menu->id];
                 }
