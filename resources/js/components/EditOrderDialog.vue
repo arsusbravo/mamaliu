@@ -8,6 +8,7 @@ import { Label } from '@/components/ui/label';
 import ClientSelector from '@/components/ClientSelector.vue';
 import FormOrder from '@/components/FormOrder.vue';
 import Textarea from './ui/textarea/Textarea.vue';
+import Toast from '@/components/ui/toast/Toast.vue';
 
 interface Order {
     user: {
@@ -144,6 +145,19 @@ const selectOrderForEdit = (orderId: number) => {
     }
 };
 
+const showToast = ref(false);
+const toastMessage = ref('');
+let toastTimer: ReturnType<typeof setTimeout> | undefined;
+
+const showErrorToast = (message: string) => {
+    toastMessage.value = message;
+    showToast.value = true;
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => {
+        showToast.value = false;
+    }, 4000);
+};
+
 const handleUpdateOrder = () => {
     if (!selectedOrderId.value) {
         alert('Please select an order to edit');
@@ -162,6 +176,7 @@ const handleUpdateOrder = () => {
         },
         onError: (errors) => {
             console.error('Update order errors:', errors);
+            showErrorToast(Object.values(errors).join(' ') || 'Failed to update order.');
         }
     });
 };
@@ -172,6 +187,19 @@ const handleOrderAdded = () => {
 </script>
 
 <template>
+    <Transition
+        enter-active-class="transition ease-out duration-300"
+        enter-from-class="opacity-0 translate-y-2"
+        enter-to-class="opacity-100 translate-y-0"
+        leave-active-class="transition ease-in duration-200"
+        leave-from-class="opacity-100 translate-y-0"
+        leave-to-class="opacity-0 translate-y-2"
+    >
+        <Toast v-if="showToast" variant="destructive" position="top-right" class="z-[100]">
+            {{ toastMessage }}
+        </Toast>
+    </Transition>
+
     <Dialog :open="open" @update:open="emit('update:open', $event)">
         <DialogContent class="max-w-2xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
