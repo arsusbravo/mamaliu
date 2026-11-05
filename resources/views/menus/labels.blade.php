@@ -15,7 +15,7 @@
     @for ($c = 0; $c < $format['cols']; $c++)
         <div class="label" style="left: {{ $format['margin_left'] + $c * $format['label_width'] }}mm; top: {{ $format['margin_top'] + $r * $format['label_height'] }}mm; padding-top: {{ $offsetTop }}mm;">
             <img class="logo" src="{{ public_path('images/smallogo.png') }}">
-            <div class="name">{{ $menu->label }}</div>
+            <div class="name">{{ $text }}</div>
         </div>
     @endfor
 @endfor

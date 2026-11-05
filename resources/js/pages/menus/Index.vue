@@ -106,6 +106,7 @@ const showDeleteDialog = ref(false);
 const showImageDialog = ref(false);
 const showLabelDialog = ref(false);
 const labelMenu = ref<Menu | null>(null);
+const labelText = ref('');
 const labelFormat = ref(props.defaultLabelFormat ?? 'pcl12');
 const selectedMenu = ref<Menu | null>(null);
 const selectedImageMenu = ref<Menu | null>(null);
@@ -145,6 +146,7 @@ const openDeleteDialog = (menu: Menu) => {
 
 const openLabelDialog = (menu: Menu) => {
     labelMenu.value = menu;
+    labelText.value = menu.label ?? '';
     try {
         const saved = localStorage.getItem('menuLabelFormat');
         if (saved && props.labelFormats.some((f) => f.id === saved)) {
@@ -163,7 +165,8 @@ const downloadLabels = () => {
     } catch {
         // ignore
     }
-    window.open(`/admin/menus/${labelMenu.value.id}/labels?format=${labelFormat.value}`, '_blank');
+    const params = new URLSearchParams({ format: labelFormat.value, text: labelText.value.trim() });
+    window.open(`/admin/menus/${labelMenu.value.id}/labels?${params}`, '_blank');
     showLabelDialog.value = false;
 };
 
@@ -461,9 +464,10 @@ watch(() => page.props.flash, (flash: any) => {
                     <DialogHeader>
                         <DialogTitle>Print labels</DialogTitle>
                         <DialogDescription>
-                            A sheet filled with labels for "{{ labelMenu?.label }}".
+                            Edit the text if needed. It is only used for printing and is not saved.
                         </DialogDescription>
                     </DialogHeader>
+                    <Input v-model="labelText" placeholder="Label text" maxlength="255" @keyup.enter="downloadLabels" />
                     <select
                         v-model="labelFormat"
                         class="h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
@@ -474,7 +478,7 @@ watch(() => page.props.flash, (flash: any) => {
                     </select>
                     <div class="flex justify-end gap-2">
                         <Button variant="outline" @click="showLabelDialog = false">Cancel</Button>
-                        <Button @click="downloadLabels">Download PDF</Button>
+                        <Button :disabled="!labelText.trim()" @click="downloadLabels">Download PDF</Button>
                     </div>
                 </DialogContent>
             </Dialog>

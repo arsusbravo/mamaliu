@@ -133,12 +133,16 @@ class MenuController extends Controller
     {
         $validated = $request->validate([
             'format' => 'required|in:' . implode(',', array_keys(config('labels.formats'))),
+            'text' => 'nullable|string|max:255',
         ]);
+
+        // Optional one-off override of the printed text; the menu itself is not changed
+        $text = trim($validated['text'] ?? '') !== '' ? trim($validated['text']) : ($menu->label ?? '');
 
         $format = config('labels.formats.' . $validated['format']);
 
         // Shrink the font for longer names so they stay inside the label
-        $length = mb_strlen($menu->label ?? '');
+        $length = mb_strlen($text);
         $fontSize = match (true) {
             $length <= 12 => 20,
             $length <= 24 => 16,
@@ -157,7 +161,7 @@ class MenuController extends Controller
         $offsetTop = max(1, ($format['label_height'] - $logoHeight - $textHeight) / 2);
 
         $html = view('menus.labels', [
-            'menu' => $menu,
+            'text' => $text,
             'format' => $format,
             'fontSize' => $fontSize,
             'logoWidth' => round($logoWidth, 1),
@@ -180,7 +184,7 @@ class MenuController extends Controller
 
         return response($mpdf->Output('', 'S'), 200, [
             'Content-Type' => 'application/pdf',
-            'Content-Disposition' => 'inline; filename="label-' . \Illuminate\Support\Str::slug($menu->label ?: 'menu') . '.pdf"',
+            'Content-Disposition' => 'inline; filename="label-' . \Illuminate\Support\Str::slug($text ?: 'menu') . '.pdf"',
         ]);
     }
 
