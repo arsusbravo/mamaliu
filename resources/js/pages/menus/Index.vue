@@ -5,6 +5,7 @@ import AppLayout from '@/layouts/AppLayout.vue';
 import { type BreadcrumbItem } from '@/types';
 import { Head } from '@inertiajs/vue3';
 import FormMenu from '@/components/FormMenu.vue';
+import LabelPrintDialog from '@/components/LabelPrintDialog.vue';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -107,7 +108,6 @@ const showImageDialog = ref(false);
 const showLabelDialog = ref(false);
 const labelMenu = ref<Menu | null>(null);
 const labelText = ref('');
-const labelFormat = ref(props.defaultLabelFormat ?? 'pcl12');
 const selectedMenu = ref<Menu | null>(null);
 const selectedImageMenu = ref<Menu | null>(null);
 
@@ -147,27 +147,12 @@ const openDeleteDialog = (menu: Menu) => {
 const openLabelDialog = (menu: Menu) => {
     labelMenu.value = menu;
     labelText.value = menu.label ?? '';
-    try {
-        const saved = localStorage.getItem('menuLabelFormat');
-        if (saved && props.labelFormats.some((f) => f.id === saved)) {
-            labelFormat.value = saved;
-        }
-    } catch {
-        // localStorage unavailable; keep the default
-    }
     showLabelDialog.value = true;
 };
 
-const downloadLabels = () => {
-    if (!labelMenu.value) return;
-    try {
-        localStorage.setItem('menuLabelFormat', labelFormat.value);
-    } catch {
-        // ignore
-    }
-    const params = new URLSearchParams({ format: labelFormat.value, text: labelText.value.trim() });
-    window.open(`/admin/menus/${labelMenu.value.id}/labels?${params}`, '_blank');
-    showLabelDialog.value = false;
+const labelUrl = (format: string) => {
+    const params = new URLSearchParams({ format, text: labelText.value.trim() });
+    return `/admin/menus/${labelMenu.value?.id}/labels?${params}`;
 };
 
 const openImageDialog = (menu: Menu) => {
@@ -459,29 +444,16 @@ watch(() => page.props.flash, (flash: any) => {
             </div>
 
             <!-- Label Dialog -->
-            <Dialog v-model:open="showLabelDialog">
-                <DialogContent class="max-w-md">
-                    <DialogHeader>
-                        <DialogTitle>Print labels</DialogTitle>
-                        <DialogDescription>
-                            Edit the text if needed. It is only used for printing and is not saved.
-                        </DialogDescription>
-                    </DialogHeader>
-                    <Input v-model="labelText" placeholder="Label text" maxlength="255" @keyup.enter="downloadLabels" />
-                    <select
-                        v-model="labelFormat"
-                        class="h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-                    >
-                        <option v-for="f in labelFormats" :key="f.id" :value="f.id">
-                            {{ f.name }} - {{ f.size }} ({{ f.count }} labels)
-                        </option>
-                    </select>
-                    <div class="flex justify-end gap-2">
-                        <Button variant="outline" @click="showLabelDialog = false">Cancel</Button>
-                        <Button :disabled="!labelText.trim()" @click="downloadLabels">Download PDF</Button>
-                    </div>
-                </DialogContent>
-            </Dialog>
+            <LabelPrintDialog
+                v-model:open="showLabelDialog"
+                :formats="labelFormats"
+                :default-format="defaultLabelFormat"
+                description="Edit the text if needed. It is only used for printing and is not saved."
+                :can-download="!!labelText.trim()"
+                :build-url="labelUrl"
+            >
+                <Input v-model="labelText" placeholder="Label text" maxlength="255" />
+            </LabelPrintDialog>
 
             <!-- Image Preview Dialog -->
             <Dialog v-model:open="showImageDialog">

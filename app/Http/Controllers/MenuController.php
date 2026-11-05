@@ -6,13 +6,13 @@ use App\Models\Menu;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
-use Intervention\Image\ImageManager;
-use Mpdf\Mpdf;
-use Intervention\Image\Drivers\Gd\Driver as GdDriver;
-use Intervention\Image\Drivers\Imagick\Driver as ImagickDriver;
+use App\Support\HandlesImageUploads;
+use App\Support\LabelSheet;
 
 class MenuController extends Controller
 {
+    use HandlesImageUploads;
+
     public function index(Request $request)
     {
         $query = Menu::query();
@@ -139,50 +139,9 @@ class MenuController extends Controller
         // Optional one-off override of the printed text; the menu itself is not changed
         $text = trim($validated['text'] ?? '') !== '' ? trim($validated['text']) : ($menu->label ?? '');
 
-        $format = config('labels.formats.' . $validated['format']);
+        $pdf = LabelSheet::pdf(config('labels.formats.' . $validated['format']), $text);
 
-        // Shrink the font for longer names so they stay inside the label
-        $length = mb_strlen($text);
-        $fontSize = match (true) {
-            $length <= 12 => 20,
-            $length <= 24 => 16,
-            $length <= 40 => 13,
-            default => 10,
-        };
-        $fontSize = min($fontSize, max(8, (int) round($format['label_width'] / 3.5)));
-
-        // Estimate the content height (logo + wrapped name) to centre it vertically
-        $logoWidth = min($format['label_width'] * 0.45, $format['label_height'] * 0.5);
-        $logoHeight = $logoWidth * 172 / 200;
-        $textWidth = $format['label_width'] - 8;
-        $charWidth = $fontSize * 0.3528 * 0.6;
-        $lines = max(1, (int) ceil($length * $charWidth / $textWidth));
-        $textHeight = 2 + $lines * $fontSize * 0.3528 * 1.15;
-        $offsetTop = max(1, ($format['label_height'] - $logoHeight - $textHeight) / 2);
-
-        $html = view('menus.labels', [
-            'text' => $text,
-            'format' => $format,
-            'fontSize' => $fontSize,
-            'logoWidth' => round($logoWidth, 1),
-            'textWidth' => $textWidth,
-            'offsetTop' => round($offsetTop, 1),
-        ])->render();
-
-        $mpdf = new Mpdf([
-            'mode' => 'utf-8',
-            'format' => 'A4',
-            'margin_left' => 0,
-            'margin_right' => 0,
-            'margin_top' => 0,
-            'margin_bottom' => 0,
-            'autoScriptToLang' => true,
-            'autoLangToFont' => true,
-        ]);
-        $mpdf->SetDefaultFont('DejaVuSansCondensed');
-        $mpdf->WriteHTML($html);
-
-        return response($mpdf->Output('', 'S'), 200, [
+        return response($pdf, 200, [
             'Content-Type' => 'application/pdf',
             'Content-Disposition' => 'inline; filename="label-' . \Illuminate\Support\Str::slug($text ?: 'menu') . '.pdf"',
         ]);
@@ -193,85 +152,11 @@ class MenuController extends Controller
         return inertia('menus/Show', ['id' => $id]);
     }
 
-    private function isHeicUpload(UploadedFile $file): bool
-    {
-        $extension = strtolower($file->getClientOriginalExtension());
-        $mime = strtolower((string) $file->getMimeType());
-
-        return in_array($extension, ['heic', 'heif'], true) || str_contains($mime, 'hei');
-    }
-
-    /**
-     * GD (the default driver) can't decode HEIC/HEIF at all. Imagick can, but
-     * only when it was compiled with libheif support, which isn't guaranteed
-     * on every server. Return a friendly error if we're about to fail.
-     */
-    private function unsupportedImageError(UploadedFile $file): ?string
-    {
-        if (!$this->isHeicUpload($file)) {
-            return null;
-        }
-
-        if ($this->imagickSupportsHeic()) {
-            return null;
-        }
-
-        return 'This server can\'t process iPhone (HEIC) photos right now. Please switch your camera to "Most Compatible" format (Settings > Camera > Formats on your iPhone) and retake the photo, or upload a JPG/PNG instead.';
-    }
-
-    private function imagickSupportsHeic(): bool
-    {
-        if (!extension_loaded('imagick')) {
-            return false;
-        }
-
-        try {
-            return in_array('HEIC', (new \Imagick())->queryFormats('HEI*'), true);
-        } catch (\Throwable $e) {
-            return false;
-        }
-    }
-
-    private function imageManager(): ImageManager
-    {
-        // Imagick is a strict superset of GD for our purposes (and is required
-        // for HEIC support), so prefer it whenever it's installed.
-        $driver = extension_loaded('imagick') ? new ImagickDriver() : new GdDriver();
-
-        return new ImageManager($driver);
-    }
-
     /**
      * Save and resize image to fit within 800x600
      */
     private function saveAndResizeImage($file, $menuId)
     {
-        $manager = $this->imageManager();
-
-        // Read image from uploaded file
-        $image = $manager->read($file->getRealPath());
-
-        // Get original dimensions
-        $width = $image->width();
-        $height = $image->height();
-
-        // Calculate new dimensions while maintaining aspect ratio
-        if ($width > 800 || $height > 600) {
-            // Calculate scale factors for both dimensions
-            $scaleWidth = 800 / $width;
-            $scaleHeight = 600 / $height;
-            
-            // Use the smaller scale factor to ensure image fits within both constraints
-            $scale = min($scaleWidth, $scaleHeight);
-            
-            $newWidth = (int)($width * $scale);
-            $newHeight = (int)($height * $scale);
-            
-            $image->scale($newWidth, $newHeight);
-        }
-
-        // Save as JPG
-        $path = storage_path("app/public/menus/{$menuId}.jpg");
-        $image->toJpeg(90)->save($path);
+        $this->saveResizedJpeg($file, storage_path("app/public/menus/{$menuId}.jpg"), 800, 600);
     }
 }
