@@ -7,6 +7,7 @@ use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 use Intervention\Image\ImageManager;
+use Mpdf\Mpdf;
 use Intervention\Image\Drivers\Gd\Driver as GdDriver;
 use Intervention\Image\Drivers\Imagick\Driver as ImagickDriver;
 
@@ -45,6 +46,13 @@ class MenuController extends Controller
                 'sort' => $sortField,
                 'direction' => $sortDirection,
             ],
+            'labelFormats' => collect(config('labels.formats'))->map(fn ($f, $id) => [
+                'id' => $id,
+                'name' => $f['name'],
+                'size' => rtrim(rtrim(number_format($f['label_width'], 1), '0'), '.') . ' x ' . rtrim(rtrim(number_format($f['label_height'], 1), '0'), '.') . ' mm',
+                'count' => $f['cols'] * $f['rows'],
+            ])->values(),
+            'defaultLabelFormat' => config('labels.default'),
         ]);
     }
 
@@ -119,6 +127,61 @@ class MenuController extends Controller
 
         return redirect()->route('admin.menus_index')
             ->with('success', 'Menu deleted successfully.');
+    }
+
+    public function labels(Request $request, Menu $menu)
+    {
+        $validated = $request->validate([
+            'format' => 'required|in:' . implode(',', array_keys(config('labels.formats'))),
+        ]);
+
+        $format = config('labels.formats.' . $validated['format']);
+
+        // Shrink the font for longer names so they stay inside the label
+        $length = mb_strlen($menu->label ?? '');
+        $fontSize = match (true) {
+            $length <= 12 => 20,
+            $length <= 24 => 16,
+            $length <= 40 => 13,
+            default => 10,
+        };
+        $fontSize = min($fontSize, max(8, (int) round($format['label_width'] / 3.5)));
+
+        // Estimate the content height (logo + wrapped name) to centre it vertically
+        $logoWidth = min($format['label_width'] * 0.45, $format['label_height'] * 0.5);
+        $logoHeight = $logoWidth * 172 / 200;
+        $textWidth = $format['label_width'] - 8;
+        $charWidth = $fontSize * 0.3528 * 0.6;
+        $lines = max(1, (int) ceil($length * $charWidth / $textWidth));
+        $textHeight = 2 + $lines * $fontSize * 0.3528 * 1.15;
+        $offsetTop = max(1, ($format['label_height'] - $logoHeight - $textHeight) / 2);
+
+        $html = view('menus.labels', [
+            'menu' => $menu,
+            'format' => $format,
+            'fontSize' => $fontSize,
+            'logoWidth' => round($logoWidth, 1),
+            'textWidth' => $textWidth,
+            'offsetTop' => round($offsetTop, 1),
+        ])->render();
+
+        $mpdf = new Mpdf([
+            'mode' => 'utf-8',
+            'format' => 'A4',
+            'margin_left' => 0,
+            'margin_right' => 0,
+            'margin_top' => 0,
+            'margin_bottom' => 0,
+            'autoScriptToLang' => true,
+            'autoLangToFont' => true,
+        ]);
+        $mpdf->SetDefaultFont('DejaVuSansCondensed');
+        $mpdf->WriteHTML($html);
+
+        return response($mpdf->Output('', 'S'), 200, [
+            'Content-Type' => 'application/pdf',
+            'Content-Disposition' => 'inline; filename="label-' . \Illuminate\Support\Str::slug($menu->label ?: 'menu') . '.pdf"',
+        ]);
     }
 
     public function show($id)

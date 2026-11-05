@@ -59,6 +59,7 @@ Route::middleware(['auth', 'usertype:' . UserType::ADMIN])->prefix('admin')->gro
     Route::put('menus/{menu}', [MenuController::class, 'update'])->name('admin.menus.update');
     Route::delete('menus/{menu}', [MenuController::class, 'destroy'])->name('admin.menus.destroy');
     Route::get('menus', [MenuController::class, 'index'])->name('admin.menus_index');
+    Route::get('menus/{menu}/labels', [MenuController::class, 'labels'])->name('admin.menus_labels');
     Route::get('menus/{menu}', [MenuController::class, 'show'])->name('admin.menus_show');
 
     Route::post('clients', [ClientController::class, 'store'])->name('admin.clients_store');

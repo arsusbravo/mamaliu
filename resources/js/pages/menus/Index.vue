@@ -26,7 +26,7 @@ import {
 import Toast from '@/components/ui/toast/Toast.vue';
 import { usePage } from '@inertiajs/vue3';
 import { useForm } from '@inertiajs/vue3';
-import { Search, ImageOff, X } from 'lucide-vue-next';
+import { Search, ImageOff, X, Tag } from 'lucide-vue-next';
 
 interface Menu {
     id: number;
@@ -59,6 +59,8 @@ interface Props {
         sort?: string;
         direction?: 'asc' | 'desc';
     };
+    labelFormats?: Array<{ id: string; name: string; size: string; count: number }>;
+    defaultLabelFormat?: string;
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -70,6 +72,8 @@ const props = withDefaults(defineProps<Props>(), {
         total: 0,
         links: [],
     }),
+    labelFormats: () => [],
+    defaultLabelFormat: 'pcl12',
     filters: () => ({
         search: '',
         menutype: '',
@@ -100,6 +104,9 @@ const showAddDialog = ref(false);
 const showEditDialog = ref(false);
 const showDeleteDialog = ref(false);
 const showImageDialog = ref(false);
+const showLabelDialog = ref(false);
+const labelMenu = ref<Menu | null>(null);
+const labelFormat = ref(props.defaultLabelFormat ?? 'pcl12');
 const selectedMenu = ref<Menu | null>(null);
 const selectedImageMenu = ref<Menu | null>(null);
 
@@ -134,6 +141,30 @@ const openEditDialog = (menu: Menu) => {
 const openDeleteDialog = (menu: Menu) => {
     selectedMenu.value = menu;
     showDeleteDialog.value = true;
+};
+
+const openLabelDialog = (menu: Menu) => {
+    labelMenu.value = menu;
+    try {
+        const saved = localStorage.getItem('menuLabelFormat');
+        if (saved && props.labelFormats.some((f) => f.id === saved)) {
+            labelFormat.value = saved;
+        }
+    } catch {
+        // localStorage unavailable; keep the default
+    }
+    showLabelDialog.value = true;
+};
+
+const downloadLabels = () => {
+    if (!labelMenu.value) return;
+    try {
+        localStorage.setItem('menuLabelFormat', labelFormat.value);
+    } catch {
+        // ignore
+    }
+    window.open(`/admin/menus/${labelMenu.value.id}/labels?format=${labelFormat.value}`, '_blank');
+    showLabelDialog.value = false;
 };
 
 const openImageDialog = (menu: Menu) => {
@@ -352,6 +383,15 @@ watch(() => page.props.flash, (flash: any) => {
                                     <Button
                                         variant="outline"
                                         size="sm"
+                                        title="Print labels"
+                                        @click="openLabelDialog(menu)"
+                                    >
+                                        <Tag class="h-4 w-4" />
+                                        Label
+                                    </Button>
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
                                         @click="openEditDialog(menu)"
                                     >
                                         Edit
@@ -414,6 +454,30 @@ watch(() => page.props.flash, (flash: any) => {
                     />
                 </div>
             </div>
+
+            <!-- Label Dialog -->
+            <Dialog v-model:open="showLabelDialog">
+                <DialogContent class="max-w-md">
+                    <DialogHeader>
+                        <DialogTitle>Print labels</DialogTitle>
+                        <DialogDescription>
+                            A sheet filled with labels for "{{ labelMenu?.label }}".
+                        </DialogDescription>
+                    </DialogHeader>
+                    <select
+                        v-model="labelFormat"
+                        class="h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                    >
+                        <option v-for="f in labelFormats" :key="f.id" :value="f.id">
+                            {{ f.name }} - {{ f.size }} ({{ f.count }} labels)
+                        </option>
+                    </select>
+                    <div class="flex justify-end gap-2">
+                        <Button variant="outline" @click="showLabelDialog = false">Cancel</Button>
+                        <Button @click="downloadLabels">Download PDF</Button>
+                    </div>
+                </DialogContent>
+            </Dialog>
 
             <!-- Image Preview Dialog -->
             <Dialog v-model:open="showImageDialog">
