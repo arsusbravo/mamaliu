@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Exports\OrdersExport;
 use App\Models\Order;
 use App\Models\Menu;
 use App\Models\Group;
@@ -11,10 +12,6 @@ use App\Models\User;
 use Illuminate\Http\Request;
 use Carbon\Carbon;
 use Maatwebsite\Excel\Facades\Excel;
-use Maatwebsite\Excel\Concerns\FromCollection;
-use Maatwebsite\Excel\Concerns\WithHeadings;
-use Maatwebsite\Excel\Concerns\WithStyles;
-use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 use Mpdf\Mpdf;
 
 class OrderController extends Controller
@@ -213,83 +210,7 @@ class OrderController extends Controller
             }
         }
 
-        $export = new class($data, $headings, $sectionHeaderRows, $totalRows, $notesHeaderRow) implements FromCollection, WithHeadings, WithStyles, \Maatwebsite\Excel\Concerns\WithColumnWidths {
-            protected $data;
-            protected $headings;
-            protected $sectionHeaderRows;
-            protected $totalRows;
-            protected $notesHeaderRow;
-
-            public function __construct($data, $headings, $sectionHeaderRows, $totalRows, $notesHeaderRow) {
-                $this->data = $data;
-                $this->headings = $headings;
-                $this->sectionHeaderRows = $sectionHeaderRows;
-                $this->totalRows = $totalRows;
-                $this->notesHeaderRow = $notesHeaderRow;
-            }
-
-            public function collection() {
-                return $this->data;
-            }
-
-            public function headings(): array {
-                return $this->headings;
-            }
-
-            public function columnWidths(): array
-            {
-                $maxLength = 15;
-                foreach ($this->data as $row) {
-                    if (isset($row[0]) && is_string($row[0])) {
-                        $length = mb_strlen($row[0]);
-                        if ($length > $maxLength) {
-                            $maxLength = $length;
-                        }
-                    }
-                }
-                return ['A' => $maxLength + 3];
-            }
-
-            public function styles(Worksheet $sheet) {
-                $styles = [];
-                $totalColumns = count($this->headings);
-                $colLetter = fn($i) => \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($i);
-                $lastCol = $colLetter($totalColumns);
-
-                // Header row: center + wrapText on B onwards
-                if ($totalColumns >= 2) {
-                    $sheet->getStyle("B1:{$lastCol}1")->applyFromArray([
-                        'alignment' => ['horizontal' => 'center', 'wrapText' => true],
-                    ]);
-                }
-
-                // Section header rows: bold + light yellow background
-                foreach ($this->sectionHeaderRows as $row) {
-                    $sheet->getStyle("A{$row}:{$lastCol}{$row}")->applyFromArray([
-                        'font' => ['bold' => true, 'size' => 12],
-                        'fill' => [
-                            'fillType' => \PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID,
-                            'startColor' => ['rgb' => 'FFF3CD'],
-                        ],
-                    ]);
-                }
-
-                // Total rows: bold
-                foreach ($this->totalRows as $row) {
-                    $sheet->getStyle("A{$row}:{$lastCol}{$row}")->applyFromArray([
-                        'font' => ['bold' => true],
-                    ]);
-                }
-
-                // Notes header
-                if ($this->notesHeaderRow !== null) {
-                    $styles[$this->notesHeaderRow] = ['font' => ['bold' => true, 'size' => 14]];
-                    $styles[$this->notesHeaderRow + 1] = ['font' => ['bold' => true]];
-                }
-
-                return $styles;
-            }
-        };
+        $export = new OrdersExport($data, $headings, $sectionHeaderRows, $totalRows, $notesHeaderRow);
 
         return Excel::download($export, "orders-week{$currentWeek}-{$currentYear}.xlsx");
     }
