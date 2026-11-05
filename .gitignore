@@ -10,6 +10,7 @@
 /resources/js/wayfinder
 /vendor
 .DS_Store
+.claude
 .env
 .env.backup
 .env.production
