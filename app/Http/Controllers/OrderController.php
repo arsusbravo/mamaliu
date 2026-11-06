@@ -176,7 +176,7 @@ class OrderController extends Controller
             }
 
             // Section total
-            $sectionTotals = ['TOTAL'];
+            $sectionTotals = ['TOTAL', '']; 
             foreach ($menus as $menu) {
                 $sectionTotals[] = $userRows->sum('menu_' . $menu->id);
             }
