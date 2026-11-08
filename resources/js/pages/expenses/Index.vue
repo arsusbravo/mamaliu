@@ -22,7 +22,7 @@ import {
     TableRow,
 } from '@/components/ui/table';
 import Toast from '@/components/ui/toast/Toast.vue';
-import { Camera, ChevronDown, ChevronRight, Download, Loader2 } from 'lucide-vue-next';
+import { Camera, ChevronDown, ImagePlus, ChevronRight, Download, Loader2 } from 'lucide-vue-next';
 
 interface ExpenseRow extends ExpenseData {
     id: number;
@@ -132,8 +132,8 @@ const blankExpense = (): ExpenseData => ({
     items: [{ name: '', quantity: 1, price: 0, category: null }],
 });
 
-// Receipts waiting for review. A scan can produce several (many photos, or one
-// photo with several small receipts); they are reviewed and saved one by one.
+// Receipts waiting for review. One photo can show several small receipts;
+// they are reviewed and saved one by one.
 interface Draft {
     expense: ExpenseData;
     receiptUrl: string | null;
@@ -193,6 +193,9 @@ watch(showAddDialog, (open) => {
 
 // Scanning
 const fileInput = ref<HTMLInputElement | null>(null);
+const cameraInput = ref<HTMLInputElement | null>(null);
+// Phones/tablets have a camera to open directly; on a computer "capture" does nothing useful
+const hasTouch = window.matchMedia('(pointer: coarse)').matches;
 const scanning = ref(false);
 
 onBeforeUnmount(clearQueue);
@@ -202,68 +205,55 @@ const xsrfToken = () => {
     return match ? decodeURIComponent(match[1]) : '';
 };
 
-const scanProgress = ref('');
-
-const scanReceipts = async (event: Event) => {
+const scanReceipt = async (event: Event) => {
     const input = event.target as HTMLInputElement;
-    const files = Array.from(input.files ?? []);
+    const file = input.files?.[0];
     input.value = '';
-    if (files.length === 0) return;
+    if (!file) return;
 
     clearQueue();
     scanning.value = true;
-    const failures: string[] = [];
 
-    // One request per photo keeps each request short; a photo can hold several receipts
-    for (const [index, file] of files.entries()) {
-        scanProgress.value = files.length > 1 ? ` ${index + 1}/${files.length}` : '';
-        try {
-            const body = new FormData();
-            body.append('receipt', file);
+    try {
+        const body = new FormData();
+        body.append('receipt', file);
 
-            const response = await fetch('/admin/expenses/scan', {
-                method: 'POST',
-                body,
-                headers: { Accept: 'application/json', 'X-XSRF-TOKEN': xsrfToken() },
-                credentials: 'same-origin',
-            });
-            const data = await response.json().catch(() => ({}));
+        const response = await fetch('/admin/expenses/scan', {
+            method: 'POST',
+            body,
+            headers: { Accept: 'application/json', 'X-XSRF-TOKEN': xsrfToken() },
+            credentials: 'same-origin',
+        });
+        const data = await response.json().catch(() => ({}));
 
-            if (!response.ok) {
-                failures.push(data.message ?? data.errors?.receipt?.[0] ?? `${file.name}: scanning failed.`);
-                continue;
-            }
-
-            // Browsers can't render HEIC/HEIF, so those get no preview
-            const isHeic = /\.(heic|heif)$/i.test(file.name) || /hei[cf]/i.test(file.type);
-            const receiptUrl = isHeic ? null : URL.createObjectURL(file);
-            if (receiptUrl) objectUrls.push(receiptUrl);
-
-            for (const receipt of data.receipts as Array<any>) {
-                queue.value.push({
-                    receiptUrl,
-                    expense: {
-                        store: receipt.store ?? '',
-                        purchased_at: receipt.date ?? today(),
-                        total: receipt.total ?? null,
-                        notes: '',
-                        receipt_image: receipt.receipt_image,
-                        items: receipt.items,
-                    },
-                });
-            }
-        } catch {
-            failures.push('Could not reach the server. Please try again.');
+        if (!response.ok) {
+            toast(data.message ?? data.errors?.receipt?.[0] ?? 'Scanning failed. Please try again.', 'destructive');
+            return;
         }
-    }
 
-    scanning.value = false;
-    scanProgress.value = '';
+        // Browsers can't render HEIC/HEIF, so those get no preview
+        const isHeic = /\.(heic|heif)$/i.test(file.name) || /hei[cf]/i.test(file.type);
+        const receiptUrl = isHeic ? null : URL.createObjectURL(file);
+        if (receiptUrl) objectUrls.push(receiptUrl);
 
-    if (failures.length) toast(failures.join(' '), 'destructive');
-    if (queue.value.length) {
+        // One photo can show several receipts: each one is reviewed and saved in turn
+        queue.value = (data.receipts as Array<any>).map((receipt) => ({
+            receiptUrl,
+            expense: {
+                store: receipt.store ?? '',
+                purchased_at: receipt.date ?? today(),
+                total: receipt.total ?? null,
+                notes: '',
+                receipt_image: receipt.receipt_image,
+                items: receipt.items,
+            },
+        }));
         queueIndex.value = 0;
         showAddDialog.value = true;
+    } catch {
+        toast('Could not reach the server. Please try again.', 'destructive');
+    } finally {
+        scanning.value = false;
     }
 };
 </script>
@@ -294,13 +284,30 @@ const scanReceipts = async (event: Event) => {
                         type="file"
                         class="hidden"
                         accept="image/*,.heic,.heif"
-                        multiple
-                        @change="scanReceipts"
+                        @change="scanReceipt"
                     />
-                    <Button :disabled="scanning || !scannerConfigured" @click="fileInput?.click()">
+                    <!-- "capture" opens the camera directly; the other button picks an existing photo -->
+                    <input
+                        ref="cameraInput"
+                        type="file"
+                        class="hidden"
+                        accept="image/*"
+                        capture="environment"
+                        @change="scanReceipt"
+                    />
+                    <Button v-if="hasTouch" :disabled="scanning || !scannerConfigured" @click="cameraInput?.click()">
                         <Loader2 v-if="scanning" class="h-4 w-4 animate-spin" />
                         <Camera v-else class="h-4 w-4" />
-                        {{ scanning ? `Reading receipt${scanProgress}…` : 'Scan receipts' }}
+                        {{ scanning ? 'Reading receipt…' : 'Take photo' }}
+                    </Button>
+                    <Button
+                        :variant="hasTouch ? 'outline' : 'default'"
+                        :disabled="scanning || !scannerConfigured"
+                        @click="fileInput?.click()"
+                    >
+                        <Loader2 v-if="scanning && !hasTouch" class="h-4 w-4 animate-spin" />
+                        <ImagePlus v-else class="h-4 w-4" />
+                        {{ scanning && !hasTouch ? 'Reading receipt…' : hasTouch ? 'Choose photo' : 'Scan receipt' }}
                     </Button>
                     <Button variant="outline" @click="openManual">Add manually</Button>
                     <Button variant="outline" as-child>
