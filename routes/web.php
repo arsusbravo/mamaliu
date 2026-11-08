@@ -5,6 +5,7 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\MenuController;
 use App\Http\Controllers\LabelController;
+use App\Http\Controllers\ExpenseController;
 use App\Http\Controllers\OrderController;
 use App\Http\Controllers\WeekmenuController;
 use App\Http\Controllers\ClientController;
@@ -62,6 +63,14 @@ Route::middleware(['auth', 'usertype:' . UserType::ADMIN])->prefix('admin')->gro
     Route::put('menus/{menu}', [MenuController::class, 'update'])->name('admin.menus.update');
     Route::delete('menus/{menu}', [MenuController::class, 'destroy'])->name('admin.menus.destroy');
     Route::get('menus', [MenuController::class, 'index'])->name('admin.menus_index');
+    Route::post('expenses/scan', [ExpenseController::class, 'scan'])->name('admin.expenses_scan');
+    Route::get('expenses/export', [ExpenseController::class, 'export'])->name('admin.expenses_export');
+    Route::post('expenses', [ExpenseController::class, 'store'])->name('admin.expenses_store');
+    Route::put('expenses/{expense}', [ExpenseController::class, 'update'])->name('admin.expenses_update');
+    Route::delete('expenses/{expense}', [ExpenseController::class, 'destroy'])->name('admin.expenses_destroy');
+    Route::get('expenses/{expense}/receipt', [ExpenseController::class, 'receipt'])->name('admin.expenses_receipt');
+    Route::get('expenses', [ExpenseController::class, 'index'])->name('admin.expenses_index');
+
     Route::post('labels', [LabelController::class, 'store'])->name('admin.labels_store');
     Route::put('labels/{label}', [LabelController::class, 'update'])->name('admin.labels_update');
     Route::delete('labels/{label}', [LabelController::class, 'destroy'])->name('admin.labels_destroy');
