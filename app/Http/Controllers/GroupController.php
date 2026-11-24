@@ -21,8 +21,9 @@ class GroupController extends Controller
         }
 
         // Sorting
-        $sortField = $request->get('sort', 'created_at');
-        $sortDirection = $request->get('direction', 'desc');
+        // Whitelist: sort/direction come from the query string
+        $sortField = in_array($request->get('sort'), ['name', 'created_at'], true) ? $request->get('sort') : 'created_at';
+        $sortDirection = $request->get('direction') === 'asc' ? 'asc' : 'desc';
         $query->orderBy($sortField, $sortDirection);
 
         $groups = $query->with('pickupPoints')->paginate(10)->withQueryString();
@@ -73,8 +74,4 @@ class GroupController extends Controller
             ->with('success', 'Group deleted successfully.');
     }
 
-    public function show($id)
-    {
-        return inertia('groups/Show', ['id' => $id]);
-    }
 }

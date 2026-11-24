@@ -24,8 +24,8 @@ class ClientHomeController extends Controller
     public function index(Request $request)
     {
         $user = $request->user();
-        $nowWeek = Carbon::now()->week;
-        $nowYear = Carbon::now()->year;
+        $nowWeek = Carbon::now()->isoWeek;
+        $nowYear = Carbon::now()->isoWeekYear;
 
         // Allow viewing specific week/year via URL params (for pre-orders)
         $currentWeek = $request->get('week', $nowWeek);

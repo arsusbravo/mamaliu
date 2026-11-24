@@ -11,8 +11,4 @@ class EmailContentController extends Controller
         return inertia('emails/Index');
     }
 
-    public function show($id)
-    {
-        return inertia('emails/Show', ['id' => $id]);
-    }
 }

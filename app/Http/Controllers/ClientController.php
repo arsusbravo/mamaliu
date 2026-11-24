@@ -24,8 +24,9 @@ class ClientController extends Controller
         }
 
         // Sorting
-        $sortField = $request->get('sort', 'created_at');
-        $sortDirection = $request->get('direction', 'desc');
+        // Whitelist: sort/direction come from the query string
+        $sortField = in_array($request->get('sort'), ['name', 'username', 'email', 'created_at'], true) ? $request->get('sort') : 'created_at';
+        $sortDirection = $request->get('direction') === 'asc' ? 'asc' : 'desc';
         $query->orderBy($sortField, $sortDirection);
 
         $clients = $query->paginate(10)->withQueryString();

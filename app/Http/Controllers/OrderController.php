@@ -11,6 +11,7 @@ use App\Models\Weekmenu;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\DB;
 use Maatwebsite\Excel\Facades\Excel;
 use Mpdf\Mpdf;
 
@@ -19,8 +20,8 @@ class OrderController extends Controller
     public function index(Request $request)
     {
         // Get current week and year as defaults
-        $currentWeek = $request->get('week', Carbon::now()->week);
-        $currentYear = $request->get('year', Carbon::now()->year);
+        $currentWeek = $request->get('week', Carbon::now()->isoWeek);
+        $currentYear = $request->get('year', Carbon::now()->isoWeekYear);
 
         // Get orders with relationships
         $query = Order::with(['weekmenu.menu', 'menu', 'user.group', 'pickupPoint'])
@@ -86,8 +87,8 @@ class OrderController extends Controller
     
     public function export(Request $request)
     {
-        $currentWeek = $request->get('week', Carbon::now()->week);
-        $currentYear = $request->get('year', Carbon::now()->year);
+        $currentWeek = $request->get('week', Carbon::now()->isoWeek);
+        $currentYear = $request->get('year', Carbon::now()->isoWeekYear);
 
         $query = Order::with(['weekmenu.menu', 'menu', 'user.group', 'pickupPoint'])
             ->byWeek($currentWeek, $currentYear);
@@ -217,8 +218,8 @@ class OrderController extends Controller
 
     public function pdf(Request $request)
     {
-        $currentWeek = $request->get('week', Carbon::now()->week);
-        $currentYear = $request->get('year', Carbon::now()->year);
+        $currentWeek = $request->get('week', Carbon::now()->isoWeek);
+        $currentYear = $request->get('year', Carbon::now()->isoWeekYear);
 
         // Get orders with same filters
         $query = Order::with(['weekmenu.menu', 'menu', 'user.group'])
@@ -310,114 +311,125 @@ class OrderController extends Controller
         }
 
         $user = User::findOrFail($validated['user_id']);
-        $groupId = $user->group_id;
 
-        // If menu_id is provided, find or create the weekmenu
-        if (!empty($validated['menu_id'])) {
-            $weekmenu = Weekmenu::firstOrCreate([
-                'menu_id' => $validated['menu_id'],
-                'week' => $validated['week'],
-                'year' => $validated['year'],
-                'group_id' => $groupId,
-            ], [
-                'quantity' => 0,
-            ]);
-            $validated['weekmenu_id'] = $weekmenu->id;
-        } else {
-            $weekmenu = Weekmenu::findOrFail($validated['weekmenu_id']);
-            $groupId = $user->group_id ?? $weekmenu->group_id;
-        }
+        $error = DB::transaction(function () use ($validated, $user) {
+            $groupId = $user->group_id;
+            $createdNow = false;
 
-        // Guard: reject if weekmenu cannot cover the requested quantity.
-        // Skip for weekmenus that were just created via menu_id (quantity starts at 0).
-        if (!$weekmenu->wasRecentlyCreated && $weekmenu->quantity < $validated['quantity']) {
-            return back()->withErrors(['quantity' => 'Only ' . $weekmenu->quantity . ' spots remaining for this menu.']);
-        }
-
-        $existedOrder = Order::where('weekmenu_id', $validated['weekmenu_id'])
-            ->where('user_id', $validated['user_id'])
-            ->where('week', $validated['week'])
-            ->where('year', $validated['year'])
-            ->first();
-
-        if (!$existedOrder) {
-            Order::create([
-                'weekmenu_id' => $validated['weekmenu_id'],
-                'user_id' => $validated['user_id'],
-                'group_id' => $groupId,
-                'quantity' => $validated['quantity'],
-                'notes' => $validated['notes'],
-                'week' => $validated['week'],
-                'year' => $validated['year'],
-            ]);
-        } else {
-            // If an order already exists for this user and weekmenu, update the quantity
-            $existedOrder->quantity += $validated['quantity'];
-            if (!empty($validated['notes'])) {
-                $existedOrder->notes = $validated['notes'];
+            // If menu_id is provided, find or create the weekmenu
+            if (!empty($validated['menu_id'])) {
+                $weekmenu = Weekmenu::firstOrCreate([
+                    'menu_id' => $validated['menu_id'],
+                    'week' => $validated['week'],
+                    'year' => $validated['year'],
+                    'group_id' => $groupId,
+                ], [
+                    'quantity' => 0,
+                ]);
+                $createdNow = $weekmenu->wasRecentlyCreated;
+                $validated['weekmenu_id'] = $weekmenu->id;
             }
-            $existedOrder->save();
-        }
 
-        $weekmenu->decrement('quantity', $validated['quantity']);
+            // Lock the row so concurrent requests cannot both see the same stock
+            $weekmenu = Weekmenu::lockForUpdate()->findOrFail($validated['weekmenu_id']);
+            $groupId = $user->group_id ?? $weekmenu->group_id;
+
+            // A weekmenu created just now has no stock limit (quantity starts at 0),
+            // so skip the guard and leave the counter at 0 instead of going negative.
+            if (!$createdNow && $weekmenu->quantity < $validated['quantity']) {
+                return 'Only ' . $weekmenu->quantity . ' spots remaining for this menu.';
+            }
+
+            $existedOrder = Order::where('weekmenu_id', $validated['weekmenu_id'])
+                ->where('user_id', $validated['user_id'])
+                ->where('week', $validated['week'])
+                ->where('year', $validated['year'])
+                ->first();
+
+            if (!$existedOrder) {
+                Order::create([
+                    'weekmenu_id' => $validated['weekmenu_id'],
+                    'user_id' => $validated['user_id'],
+                    'group_id' => $groupId,
+                    'quantity' => $validated['quantity'],
+                    'notes' => $validated['notes'] ?? null,
+                    'week' => $validated['week'],
+                    'year' => $validated['year'],
+                ]);
+            } else {
+                // If an order already exists for this user and weekmenu, update the quantity
+                $existedOrder->quantity += $validated['quantity'];
+                if (!empty($validated['notes'])) {
+                    $existedOrder->notes = $validated['notes'];
+                }
+                $existedOrder->save();
+            }
+
+            if (!$createdNow) {
+                $weekmenu->decrement('quantity', $validated['quantity']);
+            }
+
+            return null;
+        });
+
+        if ($error) {
+            return back()->withErrors(['quantity' => $error]);
+        }
 
         return redirect()->back();
     }
 
     public function update(Request $request, $id)
     {
-        $order = Order::findOrFail($id);
-        
         $validated = $request->validate([
             'quantity' => 'required|integer|min:0',
             'special_price' => 'nullable|numeric|min:0',
             'notes' => 'nullable|string|max:255',
         ]);
 
-        $orderedQuantity = $order->quantity;
+        $error = DB::transaction(function () use ($validated, $id) {
+            $order = Order::lockForUpdate()->findOrFail($id);
+            $orderedQuantity = $order->quantity;
+            $weekmenu = Weekmenu::lockForUpdate()->find($order->weekmenu_id);
 
-        if ($validated['quantity'] == 0) {
-            $weekmenuId = $order->weekmenu_id;
-            $order->delete();
-            $weekmenu = Weekmenu::find($weekmenuId);
-            if ($weekmenu) {
-                $weekmenu->increment('quantity', $orderedQuantity);
+            if ($validated['quantity'] == 0) {
+                $order->delete();
+                $weekmenu?->increment('quantity', $orderedQuantity);
+                return null;
             }
-            return redirect()->back();
-        }
 
-        if ($validated['quantity'] !== $orderedQuantity) {
-            $weekmenu = Weekmenu::find($order->weekmenu_id);
-            if ($weekmenu) {
+            if ($weekmenu && $validated['quantity'] !== $orderedQuantity) {
                 $available = $weekmenu->quantity + $orderedQuantity;
                 if ($validated['quantity'] > $available) {
-                    return back()->withErrors(['quantity' => 'Only ' . $available . ' spots available for this menu.']);
+                    return 'Only ' . $available . ' spots available for this menu.';
                 }
                 $weekmenu->quantity = $available - $validated['quantity'];
                 $weekmenu->save();
             }
-        }
 
-        $order->quantity = $validated['quantity'];
-        $order->special_price = $validated['special_price'];
-        $order->notes = $validated['notes'] ?? '';
-        $order->save();
+            $order->quantity = $validated['quantity'];
+            $order->special_price = $validated['special_price'];
+            $order->notes = $validated['notes'] ?? '';
+            $order->save();
+
+            return null;
+        });
+
+        if ($error) {
+            return back()->withErrors(['quantity' => $error]);
+        }
 
         return redirect()->back();
     }
 
     public function destroy($id)
     {
-        $order = Order::findOrFail($id);
-        $weekmenu = Weekmenu::find($order->weekmenu_id);
-        
-        if ($weekmenu) {
-            $weekmenu->quantity += $order->quantity;
-            $weekmenu->save();
-        }
-        
-        $order->delete();
-        
+        DB::transaction(function () use ($id) {
+            $order = Order::lockForUpdate()->findOrFail($id);
+            Weekmenu::lockForUpdate()->find($order->weekmenu_id)?->increment('quantity', $order->quantity);
+            $order->delete();
+        });
+
         return redirect()->back();
     }
 
@@ -435,6 +447,7 @@ class OrderController extends Controller
             ->where('year', $validated['year'])
             ->get();
 
+        DB::transaction(function () use ($orders, $validated) {
         foreach ($orders as $order) {
             if ($validated['action'] === 'copy') {
                 // Copy order
@@ -454,6 +467,7 @@ class OrderController extends Controller
                 $order->save();
             }
         }
+        });
 
         return redirect()->back();
     }

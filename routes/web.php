@@ -57,7 +57,6 @@ Route::middleware(['auth', 'usertype:' . UserType::ADMIN])->prefix('admin')->gro
     Route::delete('weekmenus/{weekmenu}', [WeekmenuController::class, 'destroy'])->name('admin.weekmenus_destroy');
     Route::get('weekmenus/list', [WeekmenuController::class, 'getWeekmenus'])->name('weekmenus_list');
     Route::get('weekmenus', [WeekmenuController::class, 'index'])->name('admin.weekmenus_index');
-    Route::get('weekmenus/{weekmenu}', [WeekmenuController::class, 'show'])->name('admin.weekmenus_show');
 
     Route::post('menus', [MenuController::class, 'store'])->name('admin.menus.store');
     Route::put('menus/{menu}', [MenuController::class, 'update'])->name('admin.menus.update');
@@ -78,13 +77,11 @@ Route::middleware(['auth', 'usertype:' . UserType::ADMIN])->prefix('admin')->gro
     Route::get('labels', [LabelController::class, 'index'])->name('admin.labels_index');
 
     Route::get('menus/{menu}/labels', [MenuController::class, 'labels'])->name('admin.menus_labels');
-    Route::get('menus/{menu}', [MenuController::class, 'show'])->name('admin.menus_show');
 
     Route::post('clients', [ClientController::class, 'store'])->name('admin.clients_store');
     Route::put('clients/{client}', [ClientController::class, 'update'])->name('admin.clients_update');
     Route::delete('clients/{client}', [ClientController::class, 'destroy'])->name('admin.clients_destroy');
     Route::get('clients/list', [ClientController::class, 'getClients'])->name('admin.clients_list');
-    Route::get('clients/{client}', [ClientController::class, 'show'])->name('admin.clients_show');
     Route::get('clients', [ClientController::class, 'index'])->name('admin.clients_index');
     
     Route::get('invites', [InviteController::class, 'index'])->name('admin.invites_index');
@@ -96,7 +93,6 @@ Route::middleware(['auth', 'usertype:' . UserType::ADMIN])->prefix('admin')->gro
     Route::put('groups/{group}', [GroupController::class, 'update'])->name('admin.groups_update');
     Route::delete('groups/{group}', [GroupController::class, 'destroy'])->name('admin.groups_destroy');
     Route::get('groups', [GroupController::class, 'index'])->name('admin.groups_index');
-    Route::get('groups/{group}', [GroupController::class, 'show'])->name('admin.groups_show');
     Route::post('groups/{group}/pickup-points', [PickupPointController::class, 'store'])->name('admin.pickup_points_store');
     Route::delete('groups/{group}/pickup-points/{pickupPoint}', [PickupPointController::class, 'destroy'])->name('admin.pickup_points_destroy');
 
@@ -111,7 +107,6 @@ Route::middleware(['auth', 'usertype:' . UserType::ADMIN])->prefix('admin')->gro
     Route::get('gifts', [GiftController::class, 'index'])->name('admin.gifts_index');
 
     Route::get('emails', [EmailContentController::class, 'index'])->name('admin.emails_index');
-    Route::get('emails/{email}', [EmailContentController::class, 'show'])->name('admin.emails_show');
 
     Route::get('invoices/by-user/{user}', [InvoiceController::class, 'getByUser'])->name('admin.invoices_by_user');
     Route::post('invoices', [InvoiceController::class, 'store'])->name('admin.invoices_store');

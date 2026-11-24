@@ -14,8 +14,8 @@ class WeekmenuController extends Controller
     public function index(Request $request)
     {
         // Get current week and year as defaults
-        $currentWeek = $request->get('week', Carbon::now()->week);
-        $currentYear = $request->get('year', Carbon::now()->year);
+        $currentWeek = $request->get('week', Carbon::now()->isoWeek);
+        $currentYear = $request->get('year', Carbon::now()->isoWeekYear);
         $groupId = $request->get('group_id', null);
 
         $query = Weekmenu::with(['menu', 'group'])

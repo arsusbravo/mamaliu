@@ -13,8 +13,8 @@ class DashboardController extends Controller
 {
     public function index()
     {
-        $currentWeek = Carbon::now()->week;
-        $currentYear = Carbon::now()->year;
+        $currentWeek = Carbon::now()->isoWeek;
+        $currentYear = Carbon::now()->isoWeekYear;
 
         // Stats for current week
         $currentWeekOrders = Order::where('week', $currentWeek)

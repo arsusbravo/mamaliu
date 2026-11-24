@@ -32,8 +32,9 @@ class MenuController extends Controller
         }
 
         // Sorting
-        $sortField = $request->get('sort', 'created_at');
-        $sortDirection = $request->get('direction', 'desc');
+        // Whitelist: sort/direction come from the query string
+        $sortField = in_array($request->get('sort'), ['label', 'price', 'menutype', 'created_at'], true) ? $request->get('sort') : 'created_at';
+        $sortDirection = $request->get('direction') === 'asc' ? 'asc' : 'desc';
         $query->orderBy($sortField, $sortDirection);
 
         $menus = $query->paginate(10)->withQueryString();
@@ -147,10 +148,6 @@ class MenuController extends Controller
         ]);
     }
 
-    public function show($id)
-    {
-        return inertia('menus/Show', ['id' => $id]);
-    }
 
     /**
      * Save and resize image to fit within 800x600

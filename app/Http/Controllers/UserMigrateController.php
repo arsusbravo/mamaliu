@@ -31,7 +31,7 @@ class UserMigrateController extends Controller
             $user->save();
             Auth::login($user, true);
         } else {
-            Log::warning('Migration attempted with invalid token', ['token' => $token]);
+            Log::warning('Migration attempted with invalid token');
             $msg = '';
         }
         
