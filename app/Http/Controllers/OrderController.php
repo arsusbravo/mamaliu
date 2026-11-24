@@ -12,6 +12,7 @@ use App\Models\User;
 use Illuminate\Http\Request;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\Rule;
 use Maatwebsite\Excel\Facades\Excel;
 use Mpdf\Mpdf;
 
@@ -411,7 +412,9 @@ class OrderController extends Controller
             }
 
             $order->quantity = $validated['quantity'];
-            $order->special_price = $validated['special_price'];
+            if (array_key_exists('special_price', $validated)) {
+                $order->special_price = $validated['special_price'];
+            }
             $order->notes = $validated['notes'] ?? '';
             $order->save();
 
@@ -440,7 +443,7 @@ class OrderController extends Controller
     public function changeClient(Request $request, $userId)
     {
         $validated = $request->validate([
-            'new_user_id' => 'required|exists:users,id|different:' . $userId,
+            'new_user_id' => ['required', 'exists:users,id', Rule::notIn([$userId])],
             'action' => 'required|in:move,copy',
             'week' => 'required|integer',
             'year' => 'required|integer',
