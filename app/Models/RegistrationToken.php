@@ -27,12 +27,6 @@ class RegistrationToken extends Model
         return $this->valid_for_days ?? self::DEFAULT_VALID_DAYS;
     }
 
-    public function scopeValid($query)
-    {
-        return $query->where('valid_at', '<=', now())
-            ->where('valid_at', '>=', now()->subDays($this->validDays()));
-    }
-
     public function scopeByToken($query, $token)
     {
         return $query->where('token', $token);

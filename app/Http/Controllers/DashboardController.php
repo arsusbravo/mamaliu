@@ -7,7 +7,6 @@ use App\Models\User;
 use App\Models\Invoice;
 use App\Models\Weekmenu;
 use Carbon\Carbon;
-use Illuminate\Http\Request;
 
 class DashboardController extends Controller
 {

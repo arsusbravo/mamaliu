@@ -17,9 +17,4 @@ class EmailContent extends Model
         'slug',
         'content',
     ];
-
-    public function scopeBySlug($query, $slug)
-    {
-        return $query->where('slug', $slug);
-    }
 }

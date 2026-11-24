@@ -3,14 +3,13 @@ import { ref, computed, watch, nextTick } from 'vue';
 import { router, Head } from '@inertiajs/vue3';
 import ClientLayout from '@/layouts/ClientLayout.vue';
 import MenuCard from '@/components/MenuCard.vue';
-import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
-import { ShoppingCart, Plus, Minus, X, ZoomIn, Sparkles, Calendar, Strikethrough } from 'lucide-vue-next';
+import { ShoppingCart, Plus, Minus, X, Sparkles, Calendar } from 'lucide-vue-next';
 
 interface Menu {
     id: number;

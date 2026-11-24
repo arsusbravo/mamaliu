@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { ImageOff, Check } from 'lucide-vue-next';
 
 interface Menu {

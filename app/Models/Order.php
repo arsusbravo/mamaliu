@@ -119,9 +119,4 @@ class Order extends Model
     {
         return $query->where('week', $week)->where('year', $year);
     }
-
-    public function anOrder($query, $week, $year, $userId)
-    {
-        return $query->where('week', $week)->where('year', $year)->where('user_id', $userId);
-    }
 }

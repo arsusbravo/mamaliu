@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Head, Link, router, usePage } from '@inertiajs/vue3';
-import { ShoppingCart, LogOut, User, Menu as MenuIcon, ChefHat, Settings } from 'lucide-vue-next';
+import { ShoppingCart, LogOut, Menu as MenuIcon, ChefHat, Settings } from 'lucide-vue-next';
 import { ref, computed } from 'vue';
 
 interface Props {

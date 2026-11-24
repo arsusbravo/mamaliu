@@ -4,7 +4,6 @@ namespace App\Http\Controllers;
 
 use App\Models\Menu;
 use Illuminate\Http\Request;
-use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 use App\Support\HandlesImageUploads;
 use App\Support\LabelSheet;

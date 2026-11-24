@@ -27,24 +27,9 @@ class Menu extends Model
 
     protected $appends = ['image_url', 'has_image'];
 
-    public function clicks()
-    {
-        return $this->hasMany(Click::class);
-    }
-
     public function weekMenus()
     {
         return $this->hasMany(Weekmenu::class);
-    }
-
-    public function scopePublished($query)
-    {
-        return $query->where('published', 1);
-    }
-
-    public function scopeByMenutype($query, $type)
-    {
-        return $query->where('menutype', $type);
     }
 
     // Check if image exists

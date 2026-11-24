@@ -27,7 +27,7 @@ import {
 import Toast from '@/components/ui/toast/Toast.vue';
 import { usePage } from '@inertiajs/vue3';
 import { useForm } from '@inertiajs/vue3';
-import { Search, ImageOff, X, Tag } from 'lucide-vue-next';
+import { Search, ImageOff, Tag } from 'lucide-vue-next';
 
 interface Menu {
     id: number;

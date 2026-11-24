@@ -105,15 +105,4 @@ class User extends Authenticatable implements CanResetPasswordContract
     {
         return $this->hasMany(Invoice::class);
     }
-
-    // Scopes
-    public function scopeActive($query)
-    {
-        return $query->where('active', 1);
-    }
-
-    public function scopeByUsertype($query, $type)
-    {
-        return $query->where('usertype', $type);
-    }
 }

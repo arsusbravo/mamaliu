@@ -6,7 +6,6 @@ use App\Models\Invoice;
 use App\Models\InvoiceItem;
 use App\Models\Order;
 use Illuminate\Http\Request;
-use Carbon\Carbon;
 
 class InvoiceController extends Controller
 {

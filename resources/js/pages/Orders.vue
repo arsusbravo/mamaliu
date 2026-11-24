@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue';
+import { ref, onMounted } from 'vue';
 import { Head, usePage } from '@inertiajs/vue3';
 import ClientLayout from '@/layouts/ClientLayout.vue';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
