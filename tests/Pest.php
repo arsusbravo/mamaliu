@@ -12,7 +12,7 @@
 */
 
 pest()->extend(Tests\TestCase::class)
-    ->use(Illuminate\Foundation\Testing\RefreshDatabase::class)
+    ->use(Tests\Concerns\RefreshLegacyDatabase::class)
     ->in('Feature');
 
 /*
@@ -26,10 +26,6 @@ pest()->extend(Tests\TestCase::class)
 |
 */
 
-expect()->extend('toBeOne', function () {
-    return $this->toBe(1);
-});
-
 /*
 |--------------------------------------------------------------------------
 | Functions
@@ -41,7 +37,18 @@ expect()->extend('toBeOne', function () {
 |
 */
 
-function something()
+function admin(array $attributes = []): App\Models\User
 {
-    // ..
+    return App\Models\User::factory()->admin()->create($attributes);
+}
+
+function client(array $attributes = []): App\Models\User
+{
+    return App\Models\User::factory()->client()->create($attributes);
+}
+
+/** A weekmenu for the current ISO week with the given number of portions left. */
+function weekmenuWithStock(int $quantity = 10, array $attributes = []): App\Models\Weekmenu
+{
+    return App\Models\Weekmenu::factory()->create(['quantity' => $quantity] + $attributes);
 }

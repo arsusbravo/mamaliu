@@ -13,11 +13,20 @@ return new class extends Migration
      */
     public function up(): void
     {
+        // MySQL-only statement; the sqlite test schema already has a nullable column
+        if (DB::getDriverName() !== 'mysql') {
+            return;
+        }
+
         DB::statement('ALTER TABLE orders MODIFY weekmenu_id INT NULL DEFAULT NULL');
     }
 
     public function down(): void
     {
+        if (DB::getDriverName() !== 'mysql') {
+            return;
+        }
+
         DB::statement('ALTER TABLE orders MODIFY weekmenu_id INT NOT NULL');
     }
 };
