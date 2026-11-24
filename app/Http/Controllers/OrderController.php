@@ -388,9 +388,12 @@ class OrderController extends Controller
         ]);
 
         $error = DB::transaction(function () use ($validated, $id) {
+            // Same lock order as ClientHomeController::placeOrder (weekmenu first,
+            // then order) so the two can never deadlock each other.
+            $weekmenuId = Order::findOrFail($id)->weekmenu_id;
+            $weekmenu = Weekmenu::lockForUpdate()->find($weekmenuId);
             $order = Order::lockForUpdate()->findOrFail($id);
             $orderedQuantity = $order->quantity;
-            $weekmenu = Weekmenu::lockForUpdate()->find($order->weekmenu_id);
 
             if ($validated['quantity'] == 0) {
                 $order->delete();
@@ -425,8 +428,9 @@ class OrderController extends Controller
     public function destroy($id)
     {
         DB::transaction(function () use ($id) {
+            $weekmenu = Weekmenu::lockForUpdate()->find(Order::findOrFail($id)->weekmenu_id);
             $order = Order::lockForUpdate()->findOrFail($id);
-            Weekmenu::lockForUpdate()->find($order->weekmenu_id)?->increment('quantity', $order->quantity);
+            $weekmenu?->increment('quantity', $order->quantity);
             $order->delete();
         });
 
