@@ -68,7 +68,7 @@ class User extends Authenticatable implements CanResetPasswordContract
     }
 
     // Mutator: When setting email, set username instead
-    public function setEmailAttribute($value)
+    public function setEmailAttribute(?string $value)
     {
         $this->attributes['username'] = $value;
     }
