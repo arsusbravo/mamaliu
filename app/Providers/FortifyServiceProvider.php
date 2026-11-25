@@ -55,9 +55,6 @@ class FortifyServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        \Laravel\Fortify\Fortify::email(function() {
-            return 'email';  // Always use 'email' field from request
-        });
         $this->configureActions();
         $this->configureViews();
         $this->configureRateLimiting();
