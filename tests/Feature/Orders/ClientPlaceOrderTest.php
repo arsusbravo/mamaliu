@@ -85,6 +85,81 @@ test('ordering the same menu twice adds to the same order', function () {
         ->and($this->weekmenu->fresh()->quantity)->toBe(5);
 });
 
+test('the order of the lines in the cart does not change the result', function () {
+    $other = weekmenuWithStock(5);
+
+    // Locks are taken in id order; sqlite can't show a deadlock, only that results match
+    checkout($this, [cartLine($other, 2), cartLine($this->weekmenu, 3)])->assertRedirect('/orders');
+
+    expect(Order::count())->toBe(2)
+        ->and($this->weekmenu->fresh()->quantity)->toBe(7)
+        ->and($other->fresh()->quantity)->toBe(3);
+});
+
+test('the same weekmenu twice in one cart is capped by the stock that is really left', function () {
+    $this->weekmenu->update(['quantity' => 4]);
+
+    checkout($this, [cartLine($this->weekmenu, 3), cartLine($this->weekmenu, 3)])->assertRedirect('/orders');
+
+    expect(Order::count())->toBe(1)
+        ->and(Order::first()->quantity)->toBe(4)
+        ->and($this->weekmenu->fresh()->quantity)->toBe(0);
+});
+
+test('the same weekmenu twice in one cart gets the full discount on one order', function () {
+    Discount::create(['code' => 'TEN', 'type' => 'percentage', 'value' => 10, 'target_type' => 'general', 'active' => true]);
+
+    checkout($this, [cartLine($this->weekmenu, 2, 'first'), cartLine($this->weekmenu, 3, 'second')], ['discount_code' => 'TEN'])
+        ->assertRedirect('/orders')
+        ->assertSessionHas('orderCount', 1);
+
+    // 5 x 10.00 at 10% = 5.00
+    expect(Order::count())->toBe(1)
+        ->and(Order::first()->quantity)->toBe(5)
+        ->and(Order::first()->notes)->toBe('second')
+        ->and(Order::first()->discount_amount)->toBe(5.0)
+        ->and(DiscountRedemption::first()->discount_amount)->toEqual(5.0);
+});
+
+test('sending the same checkout twice orders only once', function () {
+    $lines = [cartLine($this->weekmenu, 3)];
+
+    checkout($this, $lines, ['idempotency_key' => 'abc-123'])->assertRedirect('/orders')->assertSessionHas('orderCount', 1);
+    checkout($this, $lines, ['idempotency_key' => 'abc-123'])->assertRedirect('/orders')->assertSessionHas('orderCount', 1);
+
+    expect(Order::first()->quantity)->toBe(3)
+        ->and($this->weekmenu->fresh()->quantity)->toBe(7);
+    Mail::assertSent(OrderConfirmation::class, 1);
+});
+
+test('a new token is a new checkout', function () {
+    checkout($this, [cartLine($this->weekmenu, 3)], ['idempotency_key' => 'one']);
+    checkout($this, [cartLine($this->weekmenu, 2)], ['idempotency_key' => 'two']);
+
+    expect(Order::first()->quantity)->toBe(5);
+});
+
+test('a failed checkout can be retried with the same token', function () {
+    checkout($this, [cartLine($this->weekmenu, 1)], ['idempotency_key' => 'retry', 'discount_code' => 'NOPE'])
+        ->assertSessionHasErrors('discount_code');
+
+    checkout($this, [cartLine($this->weekmenu, 1)], ['idempotency_key' => 'retry'])->assertRedirect('/orders');
+
+    expect(Order::count())->toBe(1);
+});
+
+test('a second checkout in the same week adds to the discount on an existing line', function () {
+    Discount::create(['code' => 'TEN', 'type' => 'percentage', 'value' => 10, 'target_type' => 'general', 'active' => true]);
+
+    checkout($this, [cartLine($this->weekmenu, 2)], ['discount_code' => 'TEN']);
+    checkout($this, [cartLine($this->weekmenu, 3)], ['discount_code' => 'TEN']);
+
+    // 2.00 + 3.00
+    expect(Order::count())->toBe(1)
+        ->and(Order::first()->quantity)->toBe(5)
+        ->and(Order::first()->discount_amount)->toEqual(5.0);
+});
+
 test('the last portion goes to the first customer only', function () {
     $this->weekmenu->update(['quantity' => 1]);
     $second = client();
@@ -108,11 +183,85 @@ test('quantities must be at least one', function () {
 
 test('the pickup point is saved on the order', function () {
     $group = Group::factory()->create();
+    $this->customer->update(['group_id' => $group->id]);
     $pickup = PickupPoint::create(['group_id' => $group->id, 'name' => 'Front door']);
 
     checkout($this, [cartLine($this->weekmenu, 1)], ['pickup_point_id' => $pickup->id]);
 
     expect(Order::first()->pickup_point_id)->toBe($pickup->id);
+});
+
+test('a pickup point of another group is refused', function () {
+    $this->customer->update(['group_id' => Group::factory()->create()->id]);
+    $foreign = PickupPoint::create(['group_id' => Group::factory()->create()->id, 'name' => 'Elsewhere']);
+
+    checkout($this, [cartLine($this->weekmenu, 1)], ['pickup_point_id' => $foreign->id])
+        ->assertSessionHasErrors('pickup_point_id');
+
+    expect(Order::count())->toBe(0)
+        ->and($this->weekmenu->fresh()->quantity)->toBe(10);
+});
+
+test('a client without a group cannot pick a pickup point', function () {
+    $pickup = PickupPoint::create(['group_id' => Group::factory()->create()->id, 'name' => 'Front door']);
+
+    checkout($this, [cartLine($this->weekmenu, 1)], ['pickup_point_id' => $pickup->id])
+        ->assertSessionHasErrors('pickup_point_id');
+
+    expect(Order::count())->toBe(0);
+});
+
+test('a weekmenu of another group cannot be ordered', function () {
+    $this->customer->update(['group_id' => Group::factory()->create()->id]);
+    $foreign = weekmenuWithStock(5, ['group_id' => Group::factory()->create()->id]);
+
+    checkout($this, [cartLine($foreign, 2)])->assertSessionHas('error');
+
+    expect(Order::count())->toBe(0)
+        ->and($foreign->fresh()->quantity)->toBe(5);
+});
+
+test('own group and group-less weekmenus can be ordered, a foreign one in the same cart is dropped', function () {
+    $group = Group::factory()->create();
+    $this->customer->update(['group_id' => $group->id]);
+    $own = weekmenuWithStock(5, ['group_id' => $group->id]);
+    $foreign = weekmenuWithStock(5, ['group_id' => Group::factory()->create()->id]);
+
+    checkout($this, [cartLine($own, 1), cartLine($this->weekmenu, 1), cartLine($foreign, 1)])->assertRedirect('/orders');
+
+    expect(Order::pluck('weekmenu_id')->sort()->values()->all())->toBe(collect([$own->id, $this->weekmenu->id])->sort()->values()->all())
+        ->and($foreign->fresh()->quantity)->toBe(5);
+});
+
+test('a weekmenu from a past week cannot be ordered', function () {
+    $past = now()->subWeek();
+    $old = weekmenuWithStock(5, ['week' => $past->isoWeek, 'year' => $past->isoWeekYear]);
+
+    checkout($this, [cartLine($old, 1)])->assertSessionHas('error');
+
+    expect(Order::count())->toBe(0)
+        ->and($old->fresh()->quantity)->toBe(5);
+});
+
+test('the current week and a future week can be ordered', function () {
+    $next = now()->addWeek();
+    $future = weekmenuWithStock(5, ['week' => $next->isoWeek, 'year' => $next->isoWeekYear]);
+
+    checkout($this, [cartLine($this->weekmenu, 1), cartLine($future, 1)])->assertRedirect('/orders');
+
+    expect(Order::count())->toBe(2);
+});
+
+test('a line from another group does not count towards a discount', function () {
+    $this->customer->update(['group_id' => Group::factory()->create()->id]);
+    $foreign = weekmenuWithStock(5, ['group_id' => Group::factory()->create()->id, 'menu_id' => Menu::factory()->create(['price' => 100])->id]);
+    Discount::create(['code' => 'TEN', 'type' => 'percentage', 'value' => 10, 'target_type' => 'general', 'active' => true]);
+
+    checkout($this, [cartLine($this->weekmenu, 1), cartLine($foreign, 1)], ['discount_code' => 'TEN'])->assertRedirect('/orders');
+
+    // 10% of the own 10.00 line only
+    expect(Order::count())->toBe(1)
+        ->and(Order::first()->discount_amount)->toBe(1.0);
 });
 
 test('a valid discount code is applied and recorded', function () {
@@ -197,6 +346,34 @@ test('discount validation answers with json for the cart page', function () {
     $this->postJson(route('validate_discount'), [
         'discount_code' => 'NOPE', 'orders' => [cartLine($this->weekmenu, 2)],
     ])->assertOk()->assertJson(['valid' => false]);
+});
+
+test('validation of a cart with nothing orderable says so instead of checking the code', function () {
+    $this->customer->update(['group_id' => Group::factory()->create()->id]);
+    $foreign = weekmenuWithStock(5, ['group_id' => Group::factory()->create()->id]);
+    Discount::create(['code' => 'TEN', 'type' => 'percentage', 'value' => 10, 'target_type' => 'general', 'active' => true]);
+    Gift::create(['threshold_amount' => 25, 'reward_menu_id' => Menu::factory()->create()->id, 'active' => true]);
+
+    $this->postJson(route('validate_discount'), ['discount_code' => 'TEN', 'orders' => [cartLine($foreign, 1)]])
+        ->assertOk()->assertJson(['valid' => false, 'message' => 'None of the selected items are available.']);
+
+    $this->postJson(route('validate_gift'), ['gift_code' => 'M-1001', 'orders' => [cartLine($foreign, 1)]])
+        ->assertOk()->assertJson(['valid' => false, 'message' => 'None of the selected items are available.']);
+});
+
+test('code validation is throttled so codes cannot be guessed', function () {
+    $payload = ['discount_code' => 'NOPE', 'orders' => [cartLine($this->weekmenu, 1)]];
+
+    foreach (range(1, 20) as $i) {
+        $this->postJson(route('validate_discount'), $payload)->assertOk();
+    }
+
+    $this->postJson(route('validate_discount'), $payload)->assertStatus(429);
+});
+
+test('a nonsense week or year in the url does not crash the home page', function () {
+    $this->get(route('home', ['week' => 'abc', 'year' => 'xyz']))->assertOk();
+    $this->get(route('home', ['week' => 99, 'year' => 1]))->assertOk();
 });
 
 test('validating a discount does not use it up', function () {

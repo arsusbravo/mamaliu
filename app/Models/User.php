@@ -8,7 +8,6 @@ use Illuminate\Notifications\Notifiable;
 use Laravel\Fortify\TwoFactorAuthenticatable;
 use Illuminate\Contracts\Auth\CanResetPassword as CanResetPasswordContract;
 use Illuminate\Auth\Passwords\CanResetPassword;
-use Illuminate\Support\Facades\Log;
 
 class User extends Authenticatable implements CanResetPasswordContract
 {

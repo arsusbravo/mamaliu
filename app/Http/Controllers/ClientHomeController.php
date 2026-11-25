@@ -4,6 +4,8 @@ namespace App\Http\Controllers;
 
 use App\Models\Discount;
 use App\Models\Gift;
+use App\Models\PickupPoint;
+use App\Models\User;
 use App\Models\Weekmenu;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
@@ -15,6 +17,7 @@ use App\Exceptions\GiftIneligibleException;
 use App\Exceptions\GiftNotFoundException;
 use App\Services\DiscountService;
 use App\Services\GiftService;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Log;
@@ -27,9 +30,9 @@ class ClientHomeController extends Controller
         $nowWeek = Carbon::now()->isoWeek;
         $nowYear = Carbon::now()->isoWeekYear;
 
-        // Allow viewing specific week/year via URL params (for pre-orders)
-        $currentWeek = $request->get('week', $nowWeek);
-        $currentYear = $request->get('year', $nowYear);
+        $currentWeek = $request->integer('week', $nowWeek);
+        $currentYear = $request->integer('year', $nowYear);
+
         $isPreOrder = ($currentYear > $nowYear) || ($currentYear == $nowYear && $currentWeek > $nowWeek);
 
         // Try to get weekmenus for requested week
@@ -122,11 +125,9 @@ class ClientHomeController extends Controller
     }
 
     /**
-     * The pickup point to preselect for this client: whichever one they used
-     * for this same week already, or (if this is their first order this
-     * week) whichever they used most recently overall.
+     * The pickup point to preselect for this client.
      */
-    private function lastPickupPointId($user, int $week, int $year): ?int
+    private function lastPickupPointId(User $user, int $week, int $year): ?int
     {
         $thisWeek = Order::where('user_id', $user->id)
             ->where('week', $week)
@@ -146,10 +147,52 @@ class ClientHomeController extends Controller
     }
 
     /**
+     * Keep only the cart lines this client may order (same rules as index())
+     * and merge lines for the same weekmenu.
+     */
+    private function orderableOrders(array $orders, User $user): array
+    {
+        $weekmenus = Weekmenu::whereIn('id', collect($orders)->pluck('weekmenu_id')->unique())->get()->keyBy('id');
+        $nowWeek = Carbon::now()->isoWeek;
+        $nowYear = Carbon::now()->isoWeekYear;
+
+        $allowed = array_filter($orders, function ($line) use ($weekmenus, $user, $nowWeek, $nowYear) {
+            $weekmenu = $weekmenus->get($line['weekmenu_id']);
+
+            if (!$weekmenu) {
+                return false;
+            }
+
+            if ($weekmenu->year < $nowYear || ($weekmenu->year == $nowYear && $weekmenu->week < $nowWeek)) {
+                return false;
+            }
+
+            return !$user->group_id || $weekmenu->group_id === null || $weekmenu->group_id == $user->group_id;
+        });
+
+        // Merge duplicates: quantities add up, last note wins
+        $merged = [];
+
+        foreach ($allowed as $line) {
+            $id = (int) $line['weekmenu_id'];
+
+            if (!isset($merged[$id])) {
+                $merged[$id] = ['weekmenu_id' => $id, 'quantity' => 0, 'notes' => null];
+            }
+
+            $merged[$id]['quantity'] += (int) $line['quantity'];
+
+            if (!empty($line['notes'])) {
+                $merged[$id]['notes'] = $line['notes'];
+            }
+        }
+
+        return array_values($merged);
+    }
+
+    /**
      * Resolve each requested cart line to its menu and current price, for
-     * discount eligibility checks. Read-only; does not lock or reserve stock.
-     *
-     * @return array<int, array{weekmenu_id: int, menu_id: int|null, quantity: int, unit_price: float}>
+     * discount eligibility checks.
      */
     private function buildCartLines(array $orders): array
     {
@@ -181,7 +224,13 @@ class ClientHomeController extends Controller
 
         try {
             $discount = $discountService->findValidCode($validated['discount_code']);
-            $cartLines = $this->buildCartLines($validated['orders']);
+            $cart = $this->orderableOrders($validated['orders'], $request->user());
+
+            if (empty($cart)) {
+                return response()->json(['valid' => false, 'message' => 'None of the selected items are available.']);
+            }
+
+            $cartLines = $this->buildCartLines($cart);
             $discountService->checkEligibility($discount, $request->user(), $cartLines);
             $result = $discountService->calculateDiscount($discount, $cartLines);
 
@@ -210,7 +259,13 @@ class ClientHomeController extends Controller
 
         try {
             $gift = $giftService->findActiveGift();
-            $cartLines = $this->buildCartLines($validated['orders']);
+            $cart = $this->orderableOrders($validated['orders'], $request->user());
+
+            if (empty($cart)) {
+                return response()->json(['valid' => false, 'message' => 'None of the selected items are available.']);
+            }
+
+            $cartLines = $this->buildCartLines($cart);
             $giftService->checkEligibility($gift, $request->user(), $validated['gift_code'], $cartLines);
             $result = $giftService->calculateGift($gift, $cartLines);
 
@@ -233,6 +288,8 @@ class ClientHomeController extends Controller
             'pickup_point_id' => 'nullable|exists:pickup_points,id',
             'discount_code' => 'nullable|string|max:50',
             'gift_code' => 'nullable|string|max:50',
+            // Token that stops a double click or retry from ordering twice
+            'idempotency_key' => 'nullable|string|max:64',
             'orders' => 'required|array|min:1',
             'orders.*.weekmenu_id' => 'required|exists:weekmenu,id',
             'orders.*.quantity' => 'required|integer|min:1',
@@ -240,19 +297,48 @@ class ClientHomeController extends Controller
         ]);
 
         $user = $request->user();
+
+        // Pick-up point must belong to the client's group
+        if (!empty($validated['pickup_point_id'])) {
+            $belongsToGroup = $user->group_id && PickupPoint::where('id', $validated['pickup_point_id'])
+                ->where('group_id', $user->group_id)
+                ->exists();
+
+            if (!$belongsToGroup) {
+                return back()->withErrors(['pickup_point_id' => 'This pick-up point does not belong to your group.'])->withInput();
+            }
+        }
+
+        // Drop lines the client may not order
+        $cart = $this->orderableOrders($validated['orders'], $user);
+
+        if (empty($cart)) {
+            return back()->with('error', 'None of the selected items were available.');
+        }
+
+        // A repeated token gets the first result instead of a second order
+        $checkoutKey = !empty($validated['idempotency_key']) ? "checkout:{$user->id}:{$validated['idempotency_key']}" : null;
+
+        if ($checkoutKey && !Cache::add($checkoutKey, 'pending', now()->addMinutes(10))) {
+            $firstResult = Cache::get($checkoutKey);
+
+            return redirect('/orders')->with(is_array($firstResult) ? $firstResult : []);
+        }
+
         $createdOrders = [];
         $discountService = app(DiscountService::class);
         $giftService = app(GiftService::class);
 
         try {
-            DB::transaction(function () use ($validated, $user, &$createdOrders, $discountService, $giftService) {
+            // Retry up to 3 times on deadlock
+            DB::transaction(function () use ($validated, $cart, $user, &$createdOrders, $discountService, $giftService) {
+                $createdOrders = [];
                 $discount = null;
 
                 if (!empty($validated['discount_code'])) {
-                    // Lock the discount row too, so concurrent checkouts can't both
-                    // slip past a usage_limit check before either one is recorded.
+                    // Lock the discount row too.
                     $discount = $discountService->findValidCode($validated['discount_code'], lockForUpdate: true);
-                    $eligibilityCartLines = $this->buildCartLines($validated['orders']);
+                    $eligibilityCartLines = $this->buildCartLines($cart);
                     $discountService->checkEligibility($discount, $user, $eligibilityCartLines);
                 }
 
@@ -260,14 +346,18 @@ class ClientHomeController extends Controller
 
                 if (!empty($validated['gift_code'])) {
                     $gift = $giftService->findActiveGift(lockForUpdate: true);
-                    $eligibilityCartLines = $this->buildCartLines($validated['orders']);
+                    $eligibilityCartLines = $this->buildCartLines($cart);
                     $giftService->checkEligibility($gift, $user, $validated['gift_code'], $eligibilityCartLines);
                 }
 
                 $finalCartLines = [];
 
-                foreach ($validated['orders'] as $orderData) {
-                    // Lock the row so concurrent requests cannot both see the same quantity
+                // Lock weekmenus in id order to avoid deadlocks
+                $weekmenuIds = collect($cart)->pluck('weekmenu_id')->unique()->sort()->values();
+                Weekmenu::whereIn('id', $weekmenuIds)->orderBy('id')->lockForUpdate()->get();
+
+                foreach ($cart as $orderData) {
+                    // Re-read for fresh stock
                     $weekmenu = Weekmenu::with('menu')->lockForUpdate()->findOrFail($orderData['weekmenu_id']);
 
                     if ($weekmenu->quantity <= 0) {
@@ -323,9 +413,10 @@ class ClientHomeController extends Controller
 
                     foreach ($createdOrders as $order) {
                         if (isset($result['per_line'][$order->weekmenu_id])) {
+                            // Add to the discount of an earlier checkout
                             $order->update([
                                 'discount_id' => $discount->id,
-                                'discount_amount' => $result['per_line'][$order->weekmenu_id],
+                                'discount_amount' => round((float) $order->discount_amount + $result['per_line'][$order->weekmenu_id], 2),
                             ]);
                         }
                     }
@@ -348,9 +439,7 @@ class ClientHomeController extends Controller
                             $result['qualifying_total'], $result['quantity']
                         );
 
-                        // Merge into an existing gift line for the same reward item/week
-                        // rather than creating a new row each checkout, so repeat orders
-                        // in the same week show as one combined free line, not several.
+                        // Merge into an existing gift line for the same reward item/week if one exists, or create a new one if not.
                         $existingGiftOrder = Order::whereNull('weekmenu_id')
                             ->where('user_id', $user->id)
                             ->where('menu_id', $gift->reward_menu_id)
@@ -393,14 +482,25 @@ class ClientHomeController extends Controller
                                 ->update(['pickup_point_id' => $validated['pickup_point_id']]);
                         });
                 }
-            });
+            }, 3);
         } catch (DiscountNotFoundException|DiscountIneligibleException $e) {
+            $checkoutKey && Cache::forget($checkoutKey);
+
             return back()->withErrors(['discount_code' => $e->userMessage])->withInput();
         } catch (GiftNotFoundException|GiftIneligibleException $e) {
+            $checkoutKey && Cache::forget($checkoutKey);
+
             return back()->withErrors(['gift_code' => $e->userMessage])->withInput();
+        } catch (\Throwable $e) {
+            // Release the token so the client can retry
+            $checkoutKey && Cache::forget($checkoutKey);
+
+            throw $e;
         }
 
         if (empty($createdOrders)) {
+            $checkoutKey && Cache::forget($checkoutKey);
+
             return back()->with('error', 'None of the selected items were available.');
         }
 
@@ -420,11 +520,16 @@ class ClientHomeController extends Controller
             Log::error('Failed to send order confirmation email: ' . $e->getMessage());
         }
 
-        return redirect('/orders')->with([
+        $flash = [
             'success' => true,
             'orderWeek' => $firstOrder->week,
             'orderYear' => $firstOrder->year,
             'orderCount' => count($createdOrders),
-        ]);
+        ];
+
+        // Store the result for repeated requests
+        $checkoutKey && Cache::put($checkoutKey, $flash, now()->addMinutes(10));
+
+        return redirect('/orders')->with($flash);
     }
 }

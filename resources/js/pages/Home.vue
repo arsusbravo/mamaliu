@@ -77,6 +77,14 @@ const goToWeek = (week: number, year: number) => {
 
 const cart = ref<CartItem[]>([]);
 const showCart = ref(false);
+
+// Same token on retry, so the server orders only once
+const newCheckoutKey = () =>
+    typeof crypto !== 'undefined' && 'randomUUID' in crypto
+        ? crypto.randomUUID()
+        : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+const checkoutKey = ref(newCheckoutKey());
+const placingOrder = ref(false);
 const showImageDialog = ref(false);
 const selectedImage = ref<string | null>(null);
 
@@ -288,6 +296,8 @@ const applyGiftCode = async () => {
 };
 
 const placeOrder = () => {
+    if (placingOrder.value) return;
+
     if (cart.value.length === 0) {
         alert('您的購物車是空的');
         return;
@@ -308,9 +318,13 @@ const placeOrder = () => {
         pickup_point_id: selectedPickupPointId.value,
         discount_code: discountCode.value.trim() || null,
         gift_code: giftCode.value.trim() || null,
+        idempotency_key: checkoutKey.value,
         orders,
     }, {
+        onStart: () => { placingOrder.value = true; },
+        onFinish: () => { placingOrder.value = false; },
         onSuccess: () => {
+            checkoutKey.value = newCheckoutKey();
             cart.value = [];
             showCart.value = false;
             selectedPickupPointId.value = defaultPickupPointId();
@@ -598,6 +612,7 @@ const selectedImageUrl = computed(() => selectedImage.value || '');
 
                         <Button
                             @click="placeOrder"
+                            :disabled="placingOrder"
                             class="w-full bg-linear-to-r from-red-600 to-orange-500 hover:from-red-700 hover:to-orange-600 text-white font-bold text-lg py-6 rounded-xl shadow-lg hover:shadow-xl transition-all"
                             size="lg"
                         >

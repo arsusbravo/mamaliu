@@ -117,8 +117,9 @@ Route::middleware(['auth', 'usertype:' . UserType::ADMIN])->prefix('admin')->gro
 Route::middleware(['auth', 'usertype:' . UserType::CLIENT])->group(function () {
     Route::get('/', [ClientHomeController::class, 'index'])->name('home');
     Route::post('/place-order', [ClientHomeController::class, 'placeOrder'])->name('place_order');
-    Route::post('/validate-discount', [ClientHomeController::class, 'validateDiscount'])->name('validate_discount');
-    Route::post('/validate-gift', [ClientHomeController::class, 'validateGift'])->name('validate_gift');
+    // Throttled so codes can't be guessed
+    Route::post('/validate-discount', [ClientHomeController::class, 'validateDiscount'])->middleware('throttle:20,1')->name('validate_discount');
+    Route::post('/validate-gift', [ClientHomeController::class, 'validateGift'])->middleware('throttle:20,1')->name('validate_gift');
     Route::get('/orders', [ClientOrderController::class, 'index'])->name('user.orders_index');
 });
 
