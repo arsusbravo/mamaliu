@@ -352,13 +352,16 @@ class ClientHomeController extends Controller
 
                 $finalCartLines = [];
 
-                // Lock weekmenus in id order to avoid deadlocks
-                $weekmenuIds = collect($cart)->pluck('weekmenu_id')->unique()->sort()->values();
-                Weekmenu::whereIn('id', $weekmenuIds)->orderBy('id')->lockForUpdate()->get();
+                // Lock the weekmenus in id order to avoid deadlocks
+                $weekmenus = Weekmenu::with('menu')
+                    ->whereIn('id', collect($cart)->pluck('weekmenu_id'))
+                    ->orderBy('id')
+                    ->lockForUpdate()
+                    ->get()
+                    ->keyBy('id');
 
                 foreach ($cart as $orderData) {
-                    // Re-read for fresh stock
-                    $weekmenu = Weekmenu::with('menu')->lockForUpdate()->findOrFail($orderData['weekmenu_id']);
+                    $weekmenu = $weekmenus[$orderData['weekmenu_id']];
 
                     if ($weekmenu->quantity <= 0) {
                         continue;
@@ -468,9 +471,6 @@ class ClientHomeController extends Controller
                 }
 
                 // Pickup point is a per-client, per-week choice, not a per-line
-                // one: if the client changed it this checkout, every order they
-                // already have for the same week(s) should move with it too, not
-                // just the lines touched in this particular request.
                 if (!empty($validated['pickup_point_id'])) {
                     collect($createdOrders)
                         ->map(fn ($order) => ['week' => $order->week, 'year' => $order->year])
