@@ -12,8 +12,8 @@ test('profile page is displayed', function () {
     $response->assertOk();
 });
 
-// Note: the form validates "email" as a real email address, so a user whose
-// username is not an email (e.g. "mama") can not save the profile page at all.
+// Note: the form validates the login name as a real email address, so a user whose
+// username is not an email (e.g. "mama") can not save the profile page.
 test('profile name can be updated', function () {
     $user = User::factory()->create(['username' => 'mama@example.com']);
 
@@ -25,16 +25,46 @@ test('profile name can be updated', function () {
     expect($user->refresh()->name)->toBe('Test User');
 });
 
-// The profile form posts "email", but User::$fillable only has "username", so the
-// value is silently dropped on mass assignment. Remove ->skip() once fixed.
 test('login name can be changed from the profile page', function () {
     $user = User::factory()->create(['username' => 'mama@example.com']);
 
     $this->actingAs($user)
-        ->patch(route('profile.update'), ['name' => 'Test User', 'email' => 'new@example.com']);
+        ->patch(route('profile.update'), ['name' => 'Test User', 'email' => 'new@example.com'])
+        ->assertSessionHasNoErrors();
 
     expect($user->refresh()->username)->toBe('new@example.com');
-})->skip('Known bug: email is not mass assignable, so the change is ignored.');
+});
+
+test('keeping the same login name is allowed', function () {
+    $user = User::factory()->create(['username' => 'mama@example.com']);
+
+    $this->actingAs($user)
+        ->patch(route('profile.update'), ['name' => 'Same', 'email' => 'mama@example.com'])
+        ->assertSessionHasNoErrors();
+});
+
+test('a login name that belongs to someone else is rejected', function () {
+    User::factory()->create(['username' => 'taken@example.com']);
+    $user = User::factory()->create(['username' => 'mama@example.com']);
+
+    $this->actingAs($user)
+        ->patch(route('profile.update'), ['name' => 'Test', 'email' => 'taken@example.com'])
+        ->assertSessionHasErrors('email');
+
+    expect($user->refresh()->username)->toBe('mama@example.com');
+});
+
+// The users table has no "email" column. On SQLite an unknown quoted column silently
+// compares as text, so a query on it passes in tests but crashes on MySQL. Check the
+// rule itself so that can not slip through again.
+test('the uniqueness check targets the username column', function () {
+    $request = new App\Http\Requests\Settings\ProfileUpdateRequest();
+    $request->setUserResolver(fn () => User::factory()->create());
+
+    $unique = collect($request->rules()['email'])->first(fn ($rule) => str_starts_with((string) $rule, 'unique:'));
+
+    expect((string) $unique)->toStartWith('unique:users,username,');
+});
 
 test('user can delete their account', function () {
     $user = User::factory()->create();
