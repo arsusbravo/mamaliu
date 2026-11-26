@@ -11,8 +11,7 @@ use App\Models\User;
 class DiscountService
 {
     /**
-     * Find a discount by code. $cartLines is not needed here; eligibility
-     * against the cart is checked separately in checkEligibility().
+     * Find a discount by code. 
      *
      * @throws DiscountNotFoundException
      */
@@ -109,24 +108,48 @@ class DiscountService
         // Never let a discount exceed what's actually eligible (safety net for gifts up to 100% off).
         $totalDiscount = round(min($rawDiscount, $eligibleSubtotal), 2);
 
-        $perLine = [];
-        $allocated = 0.0;
-        $lastIndex = count($eligibleLines) - 1;
+        return ['total_discount' => $totalDiscount, 'per_line' => $this->splitAcrossLines($eligibleLines, $totalDiscount)];
+    }
 
-        foreach ($eligibleLines as $index => $line) {
-            $lineSubtotal = $line['unit_price'] * $line['quantity'];
+    /**
+     * Split a discount over the lines in whole cents, in proportion to line value.
+     * Every line gets its rounded-down share; the leftover cents go to the lines
+     * with the biggest remainder (later lines first on a tie). Shares are never
+     * negative and always add up to the total.
+     *
+     * @param  array<int, array{weekmenu_id: int, menu_id: int, quantity: int, unit_price: float}>  $lines
+     * @return array<int, float> weekmenu_id => amount
+     */
+    private function splitAcrossLines(array $lines, float $totalDiscount): array
+    {
+        $weights = array_map(fn ($line) => (int) round($line['unit_price'] * $line['quantity'] * 100), $lines);
+        $weightSum = array_sum($weights);
+        $totalCents = (int) round($totalDiscount * 100);
 
-            if ($index === $lastIndex) {
-                $amount = round($totalDiscount - $allocated, 2);
-            } else {
-                $amount = round(($lineSubtotal / $eligibleSubtotal) * $totalDiscount, 2);
-                $allocated += $amount;
-            }
+        $cents = [];
+        $remainders = [];
 
-            $perLine[$line['weekmenu_id']] = $amount;
+        foreach ($weights as $index => $weight) {
+            $exact = $totalCents * $weight / $weightSum;
+            $cents[$index] = (int) floor($exact);
+            $remainders[$index] = $exact - $cents[$index];
         }
 
-        return ['total_discount' => $totalDiscount, 'per_line' => $perLine];
+        $leftover = $totalCents - array_sum($cents);
+        $order = array_keys($remainders);
+        usort($order, fn ($a, $b) => [$remainders[$b], $b] <=> [$remainders[$a], $a]);
+
+        foreach (array_slice($order, 0, $leftover) as $index) {
+            $cents[$index]++;
+        }
+
+        $perLine = [];
+
+        foreach ($lines as $index => $line) {
+            $perLine[$line['weekmenu_id']] = $cents[$index] / 100.0;
+        }
+
+        return $perLine;
     }
 
     public function redeem(Discount $discount, User $user, int $week, int $year, float $orderTotalBefore, float $discountAmount): DiscountRedemption
