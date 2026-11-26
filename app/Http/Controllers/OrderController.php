@@ -380,7 +380,7 @@ class OrderController extends Controller
         return redirect()->back();
     }
 
-    public function update(Request $request, $id)
+    public function update(Request $request, int $id)
     {
         $validated = $request->validate([
             'quantity' => 'required|integer|min:0',
@@ -428,7 +428,7 @@ class OrderController extends Controller
         return redirect()->back();
     }
 
-    public function destroy($id)
+    public function destroy(int $id)
     {
         DB::transaction(function () use ($id) {
             $weekmenu = Weekmenu::lockForUpdate()->find(Order::findOrFail($id)->weekmenu_id);
@@ -440,7 +440,7 @@ class OrderController extends Controller
         return redirect()->back();
     }
 
-    public function changeClient(Request $request, $userId)
+    public function changeClient(Request $request, int $userId)
     {
         $validated = $request->validate([
             'new_user_id' => ['required', 'exists:users,id', Rule::notIn([$userId])],
